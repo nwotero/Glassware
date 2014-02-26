@@ -3,6 +3,8 @@ package com.riverlab.glassbluetooth;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 import com.riverlab.glassbluetooth.R;
@@ -30,10 +32,12 @@ public class ConnectTest extends Activity {
 
 	// Well known SPP UUID
 	private static final UUID MY_UUID =
-			UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
+			UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
 	// Insert your server's MAC address
-	private static String address = "00:1F:81:00:08:30";
+	private static String address = "60:D8:19:AC:61:15";
+	//private static String address = "00:1F:81:00:08:30";
+	
 
 	/** Called when the activity is first created. */
 	@Override
@@ -63,20 +67,46 @@ public class ConnectTest extends Activity {
 
 		// Set up a pointer to the remote node using it's address.
 		BluetoothDevice device = btAdapter.getRemoteDevice(address);
+		btAdapter.cancelDiscovery();
+
 
 		// Two things are needed to make a connection:
 		//   A MAC address, which we got above.
 		//   A Service ID or UUID.  In this case we are using the
 		//     UUID for SPP.
-		try {
-			btSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
-		} catch (IOException e) {
-			AlertBox("Fatal Error", "In onResume() and socket create failed: " + e.getMessage() + ".");
-		}
+		//try {
+			Method m;
+			try {
+				m = device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}); 
+				btSocket = (BluetoothSocket) m.invoke(device, 1); 
+				//m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[] {UUID.class});
+				//btSocket = (BluetoothSocket)m.invoke(device, MY_UUID);
+				//btSocket = device.createInsecureRfcommSocketToServiceRecord(MY_UUID);
+
+			} //catch (IOException e)
+			//{}
+				catch (NoSuchMethodException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			catch (IllegalArgumentException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InvocationTargetException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    
+			//btSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+//		} catch(){// (IOException e) {
+//			//AlertBox("Fatal Error", "In onResume() and socket create failed: " + e.getMessage() + ".");
+//		}
 
 		// Discovery is resource intensive.  Make sure it isn't going on
 		// when you attempt to connect and pass your message.
-		btAdapter.cancelDiscovery();
 
 		// Establish the connection.  This will block until it connects.
 		Log.d("CONNECTTEST", "Try to open socket");
@@ -86,6 +116,7 @@ public class ConnectTest extends Activity {
 			Log.d("CONNECTTEST", "btSocket.connect executed");
 			out.append("\n...Connection established and data link opened...");
 		} catch (IOException e) {
+			Log.d("DEBUG", e.toString());
 			try {
 				btSocket.close();
 			} catch (IOException e2) {
@@ -97,24 +128,47 @@ public class ConnectTest extends Activity {
 		out.append("\n...Sending message to server...");
 
 		try {
+			Log.d("DEBUG", "Getting Output Stream");
 			outStream = btSocket.getOutputStream();
+			Log.d("DEBUG", "Got Output Stream");
 		} catch (IOException e) {
 			AlertBox("Fatal Error", "In onResume() and output stream creation failed:" + e.getMessage() + ".");
 		}
 
-		String message = "Hello from Android.\n";
+		String message = "Hello from Glass.\n";
 		byte[] msgBuffer = message.getBytes();
 		try {
+			Log.d("DEBUG", "Writing message");
 			outStream.write(msgBuffer);
+			Log.d("DEBUG", "Message written");
 		} catch (IOException e) {
+			Log.d("DEBUG", e.toString());
 			String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
 			if (address.equals("00:00:00:00:00:00")) 
 				msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
 			msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
 
 			AlertBox("Fatal Error", msg);       
+			}
+		
+		message = "end connection\n";
+		msgBuffer = message.getBytes();
+		try {
+			Log.d("DEBUG", "Writing message");
+			outStream.write(msgBuffer);
+			Log.d("DEBUG", "Message written");
+		} catch (IOException e) {
+			Log.d("DEBUG", e.toString());
+			String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
+			if (address.equals("00:00:00:00:00:00")) 
+				msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
+			msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+
+			AlertBox("Fatal Error", msg);       
+			}
+		
+		Log.d("DEBUG", "Done");
 		}
-	}
 
 	@Override
 	public void onPause() {

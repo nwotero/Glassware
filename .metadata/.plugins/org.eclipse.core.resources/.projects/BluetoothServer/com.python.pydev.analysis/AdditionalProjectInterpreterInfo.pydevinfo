@@ -1,0 +1,37 @@
+-- VERSION_3
+-- START DISKCACHE
+/home/nick/google_dev/workspace/Glassware/.metadata/.plugins/org.eclipse.core.resources/.projects/BluetoothServer/com.python.pydev.analysis/v1_indexcache
+.v1_indexcache
+com.__init__|0|/home/nick/google_dev/workspace/Glassware/BluetoothServer/com/__init__.py
+com.riverlab.__init__|0|/home/nick/google_dev/workspace/Glassware/BluetoothServer/com/riverlab/__init__.py
+com.riverlab.server2|0|/home/nick/google_dev/workspace/Glassware/BluetoothServer/com/riverlab/server2.py
+com.riverlab.server|0|/home/nick/google_dev/workspace/Glassware/BluetoothServer/com/riverlab/server.py
+-- END DISKCACHE
+-- START DICTIONARY
+5
+4=echoThread
+3=com.riverlab.__init__
+2=com.riverlab.server2
+5=echoThread.__init__
+1=com.riverlab.server
+-- END DICTIONARY
+-- START TREE 1
+9
+dat|1|data!11@
+ech|1|echoThread!17@
+nam|1|name!19@
+nea|1|nearby_devices!27@
+por|2|port!19@port!11@
+ser|2|server_sock!11@server_sock!19@
+tar|2|target_address!27@target_name!27@
+tes|1|testUuid!11@
+uui|2|uuid!19@uuid!11@
+-- END TREE
+-- START TREE 2
+5
+__i|1|__init__!4&18@
+cli|1|client_info!5&19@
+ech|1|echo!4&19@
+run|1|run!4&18@
+soc|1|sock!5&19@
+-- END TREE
