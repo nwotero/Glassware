@@ -1,0 +1,149 @@
+package com.riverlab.robotmanager;
+
+import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.Context;
+import android.media.AudioManager;
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ScrollView;
+
+import com.google.android.glass.media.Sounds;
+import com.google.android.glass.touchpad.Gesture;
+import com.google.android.glass.touchpad.GestureDetector;
+import com.google.android.glass.widget.CardScrollView;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+public class ViewRobotListActivity extends Activity implements AdapterView.OnItemClickListener {
+
+	CardScrollView mCardScrollView;
+	BluetoothDevice mSelectedDevice;
+	RobotCardScrollAdapter adapter;
+	GestureDetector mGestureDetector;
+	ScrollView mScrollBody;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+
+		mGestureDetector = createGestureDetector(this);
+		mCardScrollView = new CardScrollView(this);
+		mCardScrollView.activate();
+		mCardScrollView.setOnItemClickListener(this);
+		mScrollBody = (ScrollView)findViewById(R.id.scrollBody);
+		setContentView(mCardScrollView);
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		ArrayList<Robot> mRobots = requestRobotList();
+		adapter = new RobotCardScrollAdapter(this, mRobots);
+		mCardScrollView.setAdapter(adapter);
+	}
+
+	private ArrayList<Robot> requestRobotList()
+	{
+		ArrayList<Robot> robotList = new ArrayList<Robot>();
+		//Test List
+		List<String> aeroProp = new ArrayList<String>(){{
+			add("Battery: 100%");
+			add("Command: Do Nothing");
+		}};
+		Robot test1 = new Robot("AERO", aeroProp);
+
+		List<String> oryxProp = new ArrayList<String>(){{
+			add("Battery: 50%");
+			add("Command: Scoop sample");
+			add("Status: Busy");
+			add("Control: Teleoperation");
+			add("Temperature: 20 degrees Celsius");
+			add("Master: AERO");
+			add("Location: Mars");
+		}};
+		Robot test2 = new Robot("Oryx", oryxProp);
+
+		robotList.add(test1);
+		robotList.add(test2);
+
+		return robotList;
+	}
+
+	@Override
+	public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+		AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audio.playSoundEffect(Sounds.TAP);
+		openOptionsMenu();
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.menu.device, menu);
+
+		return true;
+	}
+
+	@Override
+	public boolean onMenuItemSelected(int featureId, MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.connectMenuItem:
+			//Connect to mSelectedDevice here
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	private GestureDetector createGestureDetector(Context context) {
+		GestureDetector gestureDetector = new GestureDetector(context);
+		//Create a base listener for generic gestures
+		gestureDetector.setBaseListener( new GestureDetector.BaseListener() {
+			@Override
+			public boolean onGesture(Gesture gesture) {
+				if (gesture == Gesture.SWIPE_RIGHT) {
+					AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+					audio.playSoundEffect(Sounds.SELECTED);
+					
+					return true;
+				}
+				else if (gesture == Gesture.SWIPE_LEFT){
+					AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+					audio.playSoundEffect(Sounds.SELECTED);
+				}
+				else if (gesture == Gesture.TWO_SWIPE_RIGHT){
+					
+				}
+				else if (gesture == Gesture.TWO_SWIPE_LEFT){
+					
+				}
+				else if (gesture == Gesture.TAP){
+					
+				}
+				return false;
+			}
+		});
+		return gestureDetector;
+	}
+	
+	@Override
+	public boolean onGenericMotionEvent(MotionEvent event) {
+		if (mGestureDetector != null) {
+			return mGestureDetector.onMotionEvent(event);
+		}
+		return false;
+	}
+}

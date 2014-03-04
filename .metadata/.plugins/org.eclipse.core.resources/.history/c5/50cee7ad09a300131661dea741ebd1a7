@@ -1,0 +1,19 @@
+package com.riverlab.robotmanager;
+
+import android.app.Application;
+import android.bluetooth.BluetoothSocket;
+
+public class RobotManagerApplication extends Application
+{
+	private BluetoothSocket mBluetoothSocket;
+	
+	public BluetoothSocket getBluetoothSocket()
+	{
+		return mBluetoothSocket;
+	}
+	
+	public void setBluetoothSocket(BluetoothSocket newBluetoothSocket)
+	{
+		mBluetoothSocket = newBluetoothSocket;
+	}
+}

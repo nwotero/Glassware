@@ -1,0 +1,100 @@
+package com.riverlab.robotmanager;
+
+import android.app.ActionBar.LayoutParams;
+import android.bluetooth.BluetoothDevice;
+import android.content.Context;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import com.google.android.glass.widget.CardScrollAdapter;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class RobotCardScrollAdapter extends CardScrollAdapter {
+    List<Robot> mRobotList;
+
+    Context context;
+
+    public RobotCardScrollAdapter(Context context, List<Robot> robots) {
+        mRobotList = robots;
+        this.context = context;
+    }
+
+    public void addRobot(Robot robot) {
+        mRobotList.add(robot);
+    }
+
+    @Override
+    public int findIdPosition(Object id) {
+        return -1;
+    }
+
+    @Override
+    public int findItemPosition(Object item) {
+        return mRobotList.indexOf(item);
+    }
+
+    @Override
+    public int getCount() {
+        return mRobotList.size();
+    }
+
+    @Override
+    public Robot getItem(int position) {
+        return mRobotList.get(position);
+    }
+
+    class ViewHolder {
+        TextView name;
+        List<TextView> infoTextViews;
+    }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        ViewHolder holder;
+        int nextID = 3;
+        
+        if (convertView == null) {
+            convertView = View.inflate(context, R.layout.robot_card, null);
+            holder = new ViewHolder();
+            
+            Robot robot = mRobotList.get(position);
+            
+            LinearLayout ll = (LinearLayout)convertView.findViewById(R.id.scrollLinearLayout);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+            
+            holder.name = new TextView(this.context);
+            holder.name.setId(nextID);
+            nextID++;
+            holder.name.setTextSize(32);
+            holder.name.setText(robot.getName());
+            holder.name.setLayoutParams(lp);
+            holder.name.setGravity(Gravity.CENTER);
+            ll.addView(holder.name);
+            
+            holder.infoTextViews = new ArrayList<TextView>(robot.getInfo().size());
+            for(int i = 0; i < robot.getInfo().size(); i++)
+            {
+            	holder.infoTextViews.add(new TextView(this.context));
+            	TextView tv = holder.infoTextViews.get(i);
+            	tv.setId(nextID);
+                nextID++;
+                tv.setTextSize(12);
+                tv.setText(robot.getInfo().get(i));
+                tv.setLayoutParams(lp);
+                ll.addView(tv);
+            }
+            convertView.setTag(holder);
+        }
+        else {
+            holder = (ViewHolder) convertView.getTag();
+        }
+
+        return convertView;
+    }
+}

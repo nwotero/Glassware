@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Robot Manager</string>
+    <string name="glass_voice_trigger">manage robots</string>
+    <string name="view_available_devices">View Available Devices</string>
+    <string name="view_robots">View Robots</string>
+    <string name="close">Close</string>
+    <string name="connect">Pair</string>
+    
+</resources>

@@ -1,0 +1,197 @@
+package com.riverlab.robotmanager;
+
+import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
+import android.content.Context;
+import android.content.Intent;
+import android.media.AudioManager;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+
+import com.google.android.glass.media.Sounds;
+import com.google.android.glass.widget.CardScrollView;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+public class AvailableDevicesListActivity extends Activity implements AdapterView.OnItemClickListener {
+
+	BluetoothAdapter mBluetoothAdapter;
+	List<BluetoothDevice> mBondedDevices;
+	CardScrollView mCardScrollView;
+	BluetoothDevice mSelectedDevice;
+	BluetoothDeviceCardScrollAdapter adapter;
+	BluetoothSocket btSocket;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+
+		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+		mCardScrollView = new CardScrollView(this);
+		mCardScrollView.activate();
+		mCardScrollView.setOnItemClickListener(this);
+		setContentView(mCardScrollView);
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		Set<BluetoothDevice> devices = mBluetoothAdapter.getBondedDevices();
+		mBondedDevices = new ArrayList<BluetoothDevice>(devices);
+		adapter = new BluetoothDeviceCardScrollAdapter(this, mBondedDevices);
+		mCardScrollView.setAdapter(adapter);
+	}
+
+	@Override
+	public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+		mSelectedDevice = (BluetoothDevice) mCardScrollView.getItemAtPosition(position);
+		AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audio.playSoundEffect(Sounds.TAP);
+		openOptionsMenu();
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.menu.device, menu);
+
+		return true;
+	}
+
+	@Override
+	public boolean onMenuItemSelected(int featureId, MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.connectMenuItem:
+			//Connect to mSelectedDevice
+			BluetoothSocket connectedBtSocket;
+			connectedBtSocket = connectToDevice(mSelectedDevice);
+			if (connectedBtSocket != null)
+			{
+				((RobotManagerApplication) this.getApplication()).setBluetoothSocket(connectedBtSocket);    
+				Intent returnIntent = new Intent();
+				returnIntent.putExtra("result",true);
+				setResult(RESULT_OK,returnIntent);     
+				finish();
+			}
+			else
+			{       
+				Intent returnIntent = new Intent();
+				returnIntent.putExtra("result",false);
+				setResult(RESULT_OK,returnIntent);     
+				finish();
+			}
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	private BluetoothSocket connectToDevice(BluetoothDevice device) 
+	{
+		Log.d("RobotManagerBluetooth", "Attempting to connect to device");
+		// Discovery is resource intensive.  Make sure it isn't going on
+		// when you attempt to connect and pass your message.
+		mBluetoothAdapter.cancelDiscovery();
+
+		// Create a Rfcomm Socket between the Server and Glass
+		Log.d("RobotManagerBluetooth", "Attempting to create Rfcomm Socket");
+		Method m;
+		try {
+			m = device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}); 
+			btSocket = (BluetoothSocket) m.invoke(device, 1); 
+			Log.d("RobotManagerBluetooth", "Rfcomm Socket created");
+		} 
+		catch (NoSuchMethodException e) {
+			e.printStackTrace();
+			return null;
+		}
+		catch (IllegalArgumentException e) {
+			e.printStackTrace();
+			return null;
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+			return null;
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+			return null;
+		}
+
+		// Establish the connection.  This will block until it connects.
+		Log.d("RobotManagerBluetooth", "Attempting to open socket");
+		try {
+			btSocket.connect();
+			Log.d("RobotManagerBluetooth", "Connection established");
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+
+		// Create a data stream so we can talk to server.
+		Log.d("RobotManagerBluetooth", "Sending confirmation message to server");
+		OutputStream outStream;
+		try {
+			outStream = btSocket.getOutputStream();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+
+		String message = "Confirm connection\n";
+		byte[] msgBuffer = message.getBytes();
+		try {
+			Log.d("RobotManagerBluetooth", "Writing message");
+			outStream.write(msgBuffer);
+			Log.d("RobotManagerBluetooth", "Message written");
+		} catch (IOException e) {
+			e.printStackTrace();   
+			return null;
+		}
+
+		// Listen for confirmation from the server.
+		Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
+		InputStream inStream;
+		try {
+			inStream = btSocket.getInputStream();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+
+		String confirmString = "Connection confirmed\n";
+		byte[] receivedBytes = new byte[confirmString.getBytes().length];
+		try
+		{
+			inStream.read(receivedBytes);
+		} catch (IOException e){
+			e.printStackTrace();
+			return null;
+		}
+		String receivedString = new String(receivedBytes);
+		if (receivedString.equals(confirmString))
+		{
+			Log.d("RobotManagerBluetooth", "Coonnection confirmed");
+			return btSocket;
+		}
+		else
+		{
+			Log.d("RobotManagerBluetooth", "Confirmation not received");
+			return null;
+		}
+	}
+}

@@ -1,2 +1,2 @@
 eclipse.preferences.version=1
-task-tag-projects-already-scanned=BluetoothServer,GlassBluetooth,GlassBluetoothV2,GlassRemote_client,GlassRemote_common,GlassRemote_server
+task-tag-projects-already-scanned=BluetoothServer,GlassBluetooth,GlassBluetoothV2,GlassRemote_client,GlassRemote_common,GlassRemote_server,RobotManager
