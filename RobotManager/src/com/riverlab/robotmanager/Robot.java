@@ -7,6 +7,11 @@ public class Robot
 	private String name;
 	private List<String> info;
 	
+	public Robot()
+	{
+		//No data
+	}
+	
 	public Robot(String name)
 	{
 		this.name = name;
@@ -36,5 +41,10 @@ public class Robot
 	public void setInfo(List<String> newInfo)
 	{
 		info = newInfo;
+	}
+	
+	public void addInfo(String data)
+	{
+		info.add(data);
 	}
 }

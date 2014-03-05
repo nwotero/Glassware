@@ -37,5 +37,19 @@
         android:layout_marginLeft="20px"
         android:textColor="@color/green"
         android:text="@string/not_connected"/>
+    
+     <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/commandView"
+        android:textSize="24sp"
+        android:layout_toRightOf="@+id/imageView"
+        android:layout_below="@+id/connectionStatus"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="20px"
+        android:layout_marginRight="40px"
+        android:layout_marginLeft="20px"
+        android:textColor="@color/red"
+        android:text="@string/init_command"/>
 		
 </RelativeLayout>

@@ -16,6 +16,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ScrollView;
 
@@ -41,7 +42,6 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 	BluetoothDevice mSelectedDevice;
 	RobotCardScrollAdapter adapter;
 	GestureDetector mGestureDetector;
-	ScrollView mScrollBody;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +51,6 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 		mCardScrollView = new CardScrollView(this);
 		mCardScrollView.activate();
 		mCardScrollView.setOnItemClickListener(this);
-		mScrollBody = (ScrollView)findViewById(R.id.scrollBody);
 		setContentView(mCardScrollView);
 	}
 
@@ -63,12 +62,11 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 		ArrayList<Robot> mRobots = ((RobotManagerApplication)this.getApplication()).getRobotList();
 		adapter = new RobotCardScrollAdapter(this, mRobots);
 		mCardScrollView.setAdapter(adapter);
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
 	private ArrayList<Robot> requestRobotList()
 	{
-		
-		
 		ArrayList<Robot> robotList = new ArrayList<Robot>();
 		//Test List
 		List<String> aeroProp = new ArrayList<String>(){{
@@ -104,7 +102,7 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 	private GestureDetector createGestureDetector(Context context) {
 		GestureDetector gestureDetector = new GestureDetector(context);
 		//Create a base listener for generic gestures
-		gestureDetector.setBaseListener( new GestureDetector.BaseListener() {
+		/*gestureDetector.setBaseListener( new GestureDetector.BaseListener() {
 			@Override
 			public boolean onGesture(Gesture gesture) {
 				if (gesture == Gesture.SWIPE_RIGHT) {
@@ -128,78 +126,95 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 				}
 				return false;
 			}
+		});*/
+
+		gestureDetector.setFingerListener(new GestureDetector.FingerListener() {
+			//ScrollView mScrollBody = (ScrollView)findViewById(R.id.scrollBody);
+			@Override
+			public void onFingerCountChanged(int previousCount, int currentCount) {
+				if(currentCount == 2){
+					mCardScrollView.deactivate();
+				}else{
+
+					mCardScrollView.activate();
+					mCardScrollView.requestFocus();
+				}
+			}
 		});
-		return gestureDetector;
+			return gestureDetector;
 	}
+			
+		
+	
 
-	@Override
-	public boolean onGenericMotionEvent(MotionEvent event) {
-		if (mGestureDetector != null) {
-			return mGestureDetector.onMotionEvent(event);
+		@Override
+		public boolean onGenericMotionEvent(MotionEvent event) {
+			if (mGestureDetector != null) {
+				return mGestureDetector.onMotionEvent(event);
+			}
+			return false;
 		}
-		return false;
-	}
 
-	private void displaySpeechRecognizer() {
-		Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-		startActivityForResult(intent, SPEECH_REQUEST);
-	}
-
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode,
-			Intent data) {
-		if (requestCode == SPEECH_REQUEST && resultCode == RESULT_OK) {
-			List<String> results = data.getStringArrayListExtra(
-					RecognizerIntent.EXTRA_RESULTS);
-			String spokenText = results.get(0);
-
-			BluetoothSocket connectedBtSocket = ((RobotManagerApplication)this.getApplication()).getBluetoothSocket();
-			OutputStream outStream;
-			try {
-				outStream = connectedBtSocket.getOutputStream();
-			} catch (IOException e) {
-				e.printStackTrace();
-				return;
-			}
-
-			try {
-				outStream.write(spokenText.getBytes());
-			} catch (IOException e) {
-				e.printStackTrace();
-				return;
-			}
-
-			// Listen for confirmation of receipt.
-			Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
-			InputStream inStream;
-			try {
-				inStream = connectedBtSocket.getInputStream();
-			} catch (IOException e) {
-				e.printStackTrace();
-				return;
-			}
-
-			String confirmString = "Copy: " + spokenText + "\n";
-			byte[] receivedBytes = new byte[confirmString.getBytes().length];
-			try
-			{
-				inStream.read(receivedBytes);
-			} catch (IOException e){
-				e.printStackTrace();
-				return;
-			}
-			String receivedString = new String(receivedBytes);
-			if (receivedString.equals(confirmString))
-			{
-				Log.d("RobotManagerBluetooth", "Receipt confirmed");
-
-			}
-			else
-			{
-				Log.d("RobotManagerBluetooth", "Confirmation of receipt not received");
-				return;
-			}
+		private void displaySpeechRecognizer() {
+			Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+			startActivityForResult(intent, SPEECH_REQUEST);
 		}
-		super.onActivityResult(requestCode, resultCode, data);
+
+		@Override
+		protected void onActivityResult(int requestCode, int resultCode,
+				Intent data) {
+			if (requestCode == SPEECH_REQUEST && resultCode == RESULT_OK) {
+				List<String> results = data.getStringArrayListExtra(
+						RecognizerIntent.EXTRA_RESULTS);
+				String spokenText = results.get(0);
+
+				BluetoothSocket connectedBtSocket = ((RobotManagerApplication)this.getApplication()).getBluetoothSocket();
+				OutputStream outStream;
+				try {
+					outStream = connectedBtSocket.getOutputStream();
+				} catch (IOException e) {
+					e.printStackTrace();
+					return;
+				}
+
+				try {
+					outStream.write(spokenText.getBytes());
+				} catch (IOException e) {
+					e.printStackTrace();
+					return;
+				}
+
+				// Listen for confirmation of receipt.
+				Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
+				InputStream inStream;
+				try {
+					inStream = connectedBtSocket.getInputStream();
+				} catch (IOException e) {
+					e.printStackTrace();
+					return;
+				}
+
+				String confirmString = "Copy: " + spokenText + "\n";
+				byte[] receivedBytes = new byte[confirmString.getBytes().length];
+				try
+				{
+					inStream.read(receivedBytes);
+				} catch (IOException e){
+					e.printStackTrace();
+					return;
+				}
+				String receivedString = new String(receivedBytes);
+				if (receivedString.equals(confirmString))
+				{
+					Log.d("RobotManagerBluetooth", "Receipt confirmed");
+
+				}
+				else
+				{
+					Log.d("RobotManagerBluetooth", "Confirmation of receipt not received");
+					return;
+				}
+			}
+			super.onActivityResult(requestCode, resultCode, data);
+		}
 	}
-}

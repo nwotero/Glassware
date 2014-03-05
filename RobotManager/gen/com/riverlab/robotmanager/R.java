@@ -13,6 +13,7 @@ public final class R {
     public static final class color {
         public static final int dark_grey=0x7f050000;
         public static final int green=0x7f050001;
+        public static final int red=0x7f050002;
     }
     public static final class dimen {
         /**  Default screen margins, per the Android Design guidelines. 
@@ -30,17 +31,18 @@ public final class R {
         public static final int ic_launcher=0x7f020002;
     }
     public static final class id {
-        public static final int address=0x7f0a0004;
-        public static final int close=0x7f0a000a;
-        public static final int connectMenuItem=0x7f0a0007;
+        public static final int address=0x7f0a0005;
+        public static final int close=0x7f0a000b;
+        public static final int commandView=0x7f0a0003;
+        public static final int connectMenuItem=0x7f0a0008;
         public static final int connectionStatus=0x7f0a0002;
         public static final int imageView=0x7f0a0000;
-        public static final int name=0x7f0a0003;
-        public static final int scrollBody=0x7f0a0005;
-        public static final int scrollLinearLayout=0x7f0a0006;
+        public static final int name=0x7f0a0004;
+        public static final int scrollBody=0x7f0a0006;
+        public static final int scrollLinearLayout=0x7f0a0007;
         public static final int title=0x7f0a0001;
-        public static final int viewAvailableDevices=0x7f0a0008;
-        public static final int viewRobots=0x7f0a0009;
+        public static final int viewDevices=0x7f0a0009;
+        public static final int viewRobots=0x7f0a000a;
     }
     public static final class layout {
         public static final int activity_main=0x7f030000;
@@ -59,8 +61,9 @@ public final class R {
         public static final int connect=0x7f070007;
         public static final int connected=0x7f070009;
         public static final int glass_voice_trigger=0x7f070003;
+        public static final int init_command=0x7f07000a;
         public static final int not_connected=0x7f070008;
-        public static final int view_available_devices=0x7f070004;
+        public static final int view_devices=0x7f070004;
         public static final int view_robots=0x7f070005;
         public static final int view_robots_label=0x7f070002;
     }

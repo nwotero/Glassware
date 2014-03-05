@@ -2,8 +2,8 @@
 
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/viewAvailableDevices"
-        android:title="@string/view_available_devices"/>
+        android:id="@+id/viewDevices"
+        android:title="@string/view_devices"/>
     
     <item 
         android:id="@+id/viewRobots"

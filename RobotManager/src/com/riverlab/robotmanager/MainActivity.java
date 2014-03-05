@@ -1,6 +1,7 @@
 package com.riverlab.robotmanager;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -17,9 +18,12 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.RemoteViews;
 import android.widget.TextView;
 
 import com.google.android.glass.media.Sounds;
+import com.google.android.glass.timeline.LiveCard;
+import com.google.android.glass.timeline.TimelineManager;
 import com.google.android.glass.touchpad.Gesture;
 import com.google.android.glass.touchpad.GestureDetector;
 import com.google.glass.input.VoiceInputHelper;
@@ -30,12 +34,15 @@ import com.google.glass.logging.Log;
 import com.google.glass.voice.VoiceCommand;
 import com.google.glass.voice.VoiceConfig;
 
+import java.util.ArrayList;
 import java.util.Set;
 
 public class MainActivity extends Activity {
 
 	private BluetoothAdapter mBluetoothAdapter;
+	private RobotManagerApplication mApplication;
 	private ConnectedThread mConnectedThread;
+
 	public static final int REQUEST_ROBOT_INFO = 0; //Glass asks server for info
 	public static final int ROBOT_INFO_UPDATE = 1;  //Server pushes robot info
 	public static final int SEND_COMMAND = 2;		//Glass is sending a command to server
@@ -52,7 +59,6 @@ public class MainActivity extends Activity {
 			case ROBOT_INFO_UPDATE:
 				break;
 			case SEND_COMMAND:
-				
 				break;
 			case RECEIVE_COMMAND:
 				break;
@@ -64,12 +70,20 @@ public class MainActivity extends Activity {
 		}
 	};
 
+	private TimelineManager mTimelineManager;
+	private RemoteViews aRV;
+	private LiveCard mLiveCard;
+	private static final String LIVE_CARD_ID = "robot_manager";
+
 	private TextView connectionStatusTextView;
 	private ImageView imageView;
 	private GestureDetector mGestureDetector;
+	private TextView commandView;
 
 	private VoiceInputHelper mVoiceInputHelper;
 	private VoiceConfig mVoiceConfig;
+
+	private boolean isConnected = false;
 
 	public class MyVoiceListener implements VoiceListener {
 		protected final VoiceConfig voiceConfig;
@@ -92,6 +106,38 @@ public class MainActivity extends Activity {
 		public VoiceConfig onVoiceCommand(VoiceCommand vc) {
 			String recognizedStr = vc.getLiteral();
 			Log.i("VoiceActivity", "Recognized text: "+recognizedStr);
+
+			commandView.setText("Command: " + recognizedStr);
+
+			if (recognizedStr.startsWith("connect to"))
+			{
+				if (!isConnected)
+				{
+					for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
+					{
+						if (device.getName().equals(recognizedStr.substring(11)))
+						{
+							BluetoothSocket socket = mApplication.connectToDevice(device);
+							mConnectedThread = new ConnectedThread(socket, mHandler);
+							connectionStatusTextView.setText(R.string.connected);
+							isConnected = true;
+							return voiceConfig;
+						}
+					}
+				}
+			}
+			else if (recognizedStr.equals("end connection"))
+			{
+				if (mConnectedThread != null)
+				{
+					mConnectedThread.write("end connection\n".getBytes());
+					mConnectedThread = null;
+				}
+			}
+			else
+			{
+				mConnectedThread.write(recognizedStr.getBytes());
+			}
 
 			return voiceConfig;
 		}
@@ -131,11 +177,28 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 		connectionStatusTextView = (TextView) findViewById(R.id.connectionStatus);
 		imageView = (ImageView) findViewById(R.id.imageView);
-
+		commandView = (TextView)findViewById(R.id.commandView);
+		mApplication = ((RobotManagerApplication) this.getApplication());
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-		String[] items = {"red", "green", "blue", "orange"};
-		mVoiceConfig = new VoiceConfig("MyVoiceConfig", items);
+		String[] commands = {"straight", "forward", 
+				"turn left", "left", 
+				"turn right", "right", 
+				"stop", "end connection"};
+		ArrayList<String> commandList = new ArrayList<String>();
+
+		for (String command : commands)
+		{
+			commandList.add(command);
+		}
+
+		for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
+		{
+			commandList.add("connect to " + device.getName());
+		}
+
+
+		mVoiceConfig = new VoiceConfig("MyVoiceConfig", commandList.toArray(new String[commandList.size()]));
 		mVoiceInputHelper = new VoiceInputHelper(this, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(this));
 	}
@@ -167,13 +230,17 @@ public class MainActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		// Handle item selection.
 		switch (item.getItemId()) {
-		case R.id.viewAvailableDevices:
-			startActivityForResult(new Intent(this, AvailableDevicesListActivity.class), 1);
+		case R.id.viewDevices:
+			startActivityForResult(new Intent(this, BluetoothDevicesListActivity.class), 1);
 			return true;
 		case R.id.viewRobots:
 			startActivity(new Intent(this, ViewRobotListActivity.class));
 			return true;
 		case R.id.close:
+			if (mConnectedThread != null)
+			{
+				mConnectedThread.write("end connection\n".getBytes());
+			}
 			finish();            	
 		default:
 			return super.onOptionsItemSelected(item);
@@ -192,7 +259,7 @@ public class MainActivity extends Activity {
 					connectionStatusTextView.setText(R.string.connected);
 					BluetoothSocket socket = ((RobotManagerApplication)this.getApplication()).getBluetoothSocket();
 					mConnectedThread = new ConnectedThread(socket, mHandler);
-
+					isConnected = true;
 				}
 				else
 				{

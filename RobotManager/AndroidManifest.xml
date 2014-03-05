@@ -31,7 +31,7 @@
         </activity>
         
         <activity
-            android:name="com.riverlab.robotmanager.AvailableDevicesListActivity"
+            android:name="com.riverlab.robotmanager.BluetoothDevicesListActivity"
             android:label="@string/available_devices_label"/>
         
         <activity
