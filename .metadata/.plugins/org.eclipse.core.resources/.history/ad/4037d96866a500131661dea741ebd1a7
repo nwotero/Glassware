@@ -126,7 +126,7 @@ public class ConnectedThread extends Thread
 		try {
 			mOutStream.write(bytes);
 		} catch (IOException e) { }
-/*
+
 		// Listen for confirmation of receipt.
 		Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
 
@@ -150,7 +150,6 @@ public class ConnectedThread extends Thread
 			Log.d("RobotManagerBluetooth", "Confirmation of receipt not received");
 			return;
 		}
-		*/
 	}
 
 	/* Call this from the main activity to shutdown the connection */

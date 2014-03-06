@@ -184,8 +184,7 @@ public class MainActivity extends Activity {
 		String[] commands = {"straight", "forward", 
 				"turn left", "left", 
 				"turn right", "right", 
-				"stop", "back",
-				"end connection"};
+				"stop", "end connection"};
 		ArrayList<String> commandList = new ArrayList<String>();
 
 		for (String command : commands)
