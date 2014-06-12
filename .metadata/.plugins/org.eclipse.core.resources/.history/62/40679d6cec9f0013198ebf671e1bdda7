@@ -1,8 +1,0 @@
-<resources>
-    <string name="app_name">Robot Manager</string>
-    <string name="show_pared_devices">Show Paired Devices</string>
-    <string name="view_robots">View Robots</string>
-    <string name="close">Close</string>
-    <string name="connect">Pair</string>
-    
-</resources>

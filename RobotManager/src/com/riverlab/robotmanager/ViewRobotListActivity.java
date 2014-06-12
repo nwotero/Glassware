@@ -58,15 +58,16 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 	protected void onResume() {
 		super.onResume();
 
-		((RobotManagerApplication) this.getApplication()).setRobotList(requestRobotList());
+		requestRobotList();
 		ArrayList<Robot> mRobots = ((RobotManagerApplication)this.getApplication()).getRobotList();
 		adapter = new RobotCardScrollAdapter(this, mRobots);
 		mCardScrollView.setAdapter(adapter);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
-	private ArrayList<Robot> requestRobotList()
+	private void requestRobotList()
 	{
+		/*
 		ArrayList<Robot> robotList = new ArrayList<Robot>();
 		//Test List
 		List<String> aeroProp = new ArrayList<String>(){{
@@ -90,6 +91,7 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 		robotList.add(test2);
 
 		return robotList;
+		*/
 	}
 
 	@Override

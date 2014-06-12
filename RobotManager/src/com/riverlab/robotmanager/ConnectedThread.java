@@ -6,21 +6,25 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 
 import android.bluetooth.BluetoothSocket;
+import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 public class ConnectedThread extends Thread
 {
-	private final BluetoothSocket mBtSocket;
-	private final InputStream mInStream;
-	private final OutputStream mOutStream;
-	private final Handler mHandler;
+	private BluetoothSocket mBtSocket;
+	private InputStream mInStream;
+	private OutputStream mOutStream;
+	private Handler mHandler;
+	private RobotManagerApplication mApplication;
 
-	public ConnectedThread(BluetoothSocket socket, Handler uiHandler) {
+	public ConnectedThread(BluetoothSocket socket, Handler uiHandler, RobotManagerApplication app) {
 		mBtSocket = socket;
 		InputStream tmpIn = null;
 		OutputStream tmpOut = null;
 		mHandler = uiHandler;
+		mApplication = app;
 
 		// Get the input and output streams, using temp objects because
 		// member streams are final
@@ -116,6 +120,11 @@ public class ConnectedThread extends Thread
 			}
 			robotList.add(newRobot);
 		}
+		
+		mApplication.setRobotList(robotList);
+		Message msg = new Message();
+		msg.what = MainActivity.ROBOT_INFO_UPDATE;
+		mHandler.sendMessage(msg);
 	}
 
 	/* Call this from the main activity to send data to the remote device */

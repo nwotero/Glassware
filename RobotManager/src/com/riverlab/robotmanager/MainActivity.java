@@ -37,11 +37,17 @@ import com.google.glass.voice.VoiceConfig;
 import java.util.ArrayList;
 import java.util.Set;
 
+/*This is the Main Activity for the Robot Manager App.  It displays the
+ * main GUI and also continuously listens for user commands. 
+ * 
+ */
+
 public class MainActivity extends Activity {
 
+	//Bluetooth global variables
 	private BluetoothAdapter mBluetoothAdapter;
-	private RobotManagerApplication mApplication;
 	private ConnectedThread mConnectedThread;
+	private boolean isConnected = false;
 
 	public static final int REQUEST_ROBOT_INFO = 0; //Glass asks server for info
 	public static final int ROBOT_INFO_UPDATE = 1;  //Server pushes robot info
@@ -50,6 +56,7 @@ public class MainActivity extends Activity {
 	public static final int NOTIFICATION = 4;		//Server pushes notification to Glass
 	public static final int CONFIRMATION = 5;
 
+	//This Handler handles messages sent from the ConnectedThread for received bluetooth messages
 	private final Handler mHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
@@ -70,21 +77,25 @@ public class MainActivity extends Activity {
 		}
 	};
 
+	
+	//Timeline global variables
+	private RobotManagerApplication mApplication;
 	private TimelineManager mTimelineManager;
 	private RemoteViews aRV;
 	private LiveCard mLiveCard;
 	private static final String LIVE_CARD_ID = "robot_manager";
 
+	//GUI global variables
 	private TextView connectionStatusTextView;
 	private ImageView imageView;
 	private GestureDetector mGestureDetector;
 	private TextView commandView;
 
+	//Global variables for continuous listening
 	private VoiceInputHelper mVoiceInputHelper;
 	private VoiceConfig mVoiceConfig;
 
-	private boolean isConnected = false;
-
+	//This class is used to continuously listen for user input 
 	public class MyVoiceListener implements VoiceListener {
 		protected final VoiceConfig voiceConfig;
 
@@ -102,24 +113,28 @@ public class MainActivity extends Activity {
 
 		}
 
+		//This method handles recognized voice commands
 		@Override
 		public VoiceConfig onVoiceCommand(VoiceCommand vc) {
 			String recognizedStr = vc.getLiteral();
 			Log.i("VoiceActivity", "Recognized text: "+recognizedStr);
 
+			//Change the GUI to show the recognized command
 			commandView.setText("Command: " + recognizedStr);
 
+			//Check to see if the command is to connect to a bluetooth device
 			if (recognizedStr.startsWith("connect to"))
 			{
-				if (!isConnected)
+				if (!isConnected) //If already connected do not connect
 				{
 					for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
 					{
 						if (device.getName().equals(recognizedStr.substring(11)))
 						{
 							BluetoothSocket socket = mApplication.connectToDevice(device);
-							mConnectedThread = new ConnectedThread(socket, mHandler);
+							mConnectedThread = new ConnectedThread(socket, mHandler, mApplication);
 							connectionStatusTextView.setText(R.string.connected);
+							imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
 							isConnected = true;
 							return voiceConfig;
 						}
@@ -131,6 +146,9 @@ public class MainActivity extends Activity {
 				if (mConnectedThread != null)
 				{
 					mConnectedThread.write("end connection\n".getBytes());
+					isConnected = false;
+					connectionStatusTextView.setText(R.string.not_connected);
+					imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
 					mConnectedThread = null;
 				}
 			}
@@ -157,6 +175,8 @@ public class MainActivity extends Activity {
 			return false;
 		}
 
+		//This may be considered in order to differentiate commands from normal
+		//speech
 		@Override
 		public boolean onVoiceAmplitudeChanged(double arg0) {
 			return false;
@@ -181,10 +201,15 @@ public class MainActivity extends Activity {
 		mApplication = ((RobotManagerApplication) this.getApplication());
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-		String[] commands = {"straight", "forward", 
-				"turn left", "left", 
-				"turn right", "right", 
-				"stop", "back",
+		//Pre-set commands
+		String[] commands = {//"straight", "forward", 
+				//"turn left", "left", 
+				//"turn right", "right", 
+				//"stop", "back", 
+				"drive forward", "drive backward", "turn left", "turn right",
+				"look up", "look down", "look left", "look right",
+				"move arm up", "move arm down", "move arm left", "move arm right",
+				"open scoop", "close scoop", "again",
 				"end connection"};
 		ArrayList<String> commandList = new ArrayList<String>();
 
@@ -193,12 +218,14 @@ public class MainActivity extends Activity {
 			commandList.add(command);
 		}
 
+		//Prefix all bluetooth device names with "connect to " to allow the
+		//user to connect through voice control
 		for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
 		{
 			commandList.add("connect to " + device.getName());
 		}
 
-
+		//Set up command listener
 		mVoiceConfig = new VoiceConfig("MyVoiceConfig", commandList.toArray(new String[commandList.size()]));
 		mVoiceInputHelper = new VoiceInputHelper(this, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(this));
@@ -258,8 +285,9 @@ public class MainActivity extends Activity {
 				if (result.equals("Success"))
 				{
 					connectionStatusTextView.setText(R.string.connected);
+					imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
 					BluetoothSocket socket = ((RobotManagerApplication)this.getApplication()).getBluetoothSocket();
-					mConnectedThread = new ConnectedThread(socket, mHandler);
+					mConnectedThread = new ConnectedThread(socket, mHandler, mApplication);
 					isConnected = true;
 				}
 				else
@@ -270,6 +298,7 @@ public class MainActivity extends Activity {
 		}
 	}
 
+	//Listens for the user to tap on the Card.
 	private GestureDetector createGestureDetector(Context context) {
 		GestureDetector gestureDetector = new GestureDetector(context);
 		//Create a base listener for generic gestures
