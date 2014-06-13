@@ -38,8 +38,11 @@ public class ConnectedThread extends Thread
 	}
 
 	public void run() {
+		
+		//Listen for message
 		byte[] buffer = new byte[1024];  // buffer store for the stream
 		byte[] bytes; // bytes returned from read()
+		ComMessage msg = new ComMessage();
 
 		// Keep listening to the InputStream until an exception occurs
 		while (true) {
@@ -47,13 +50,53 @@ public class ConnectedThread extends Thread
 				// Read from the InputStream
 				mInStream.read(buffer);
 
-				parseInputSteam(new String(buffer));
+				msg.fromByteArray(buffer);
+				
+				String type = msg.getType();
+				if (type.equals("Simple"))
+				{
+					
+				}
+				else if (type.equals("List"))
+				{
+					
+				}
+				else if (type.equals("Image"))
+				{
+					
+				}
+				else if (type.equals("Map"))
+				{
+					
+				}
+				
 				// Send the obtained bytes to the UI activity
 
 			} catch (IOException e) {
 				break;
 			}
 		}
+		
+		//Read in header
+		
+		//Parse header for information
+		
+		//Select how to parse based on type of message
+		
+		//Send information back to UI thread
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
 	}
 
 	private void parseInputSteam(String input) 

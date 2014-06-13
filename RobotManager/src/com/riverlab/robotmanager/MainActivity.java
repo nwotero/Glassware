@@ -23,7 +23,6 @@ import android.widget.TextView;
 
 import com.google.android.glass.media.Sounds;
 import com.google.android.glass.timeline.LiveCard;
-import com.google.android.glass.timeline.TimelineManager;
 import com.google.android.glass.touchpad.Gesture;
 import com.google.android.glass.touchpad.GestureDetector;
 import com.google.glass.input.VoiceInputHelper;
@@ -80,7 +79,6 @@ public class MainActivity extends Activity {
 	
 	//Timeline global variables
 	private RobotManagerApplication mApplication;
-	private TimelineManager mTimelineManager;
 	private RemoteViews aRV;
 	private LiveCard mLiveCard;
 	private static final String LIVE_CARD_ID = "robot_manager";

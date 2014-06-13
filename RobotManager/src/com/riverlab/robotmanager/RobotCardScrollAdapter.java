@@ -29,16 +29,6 @@ public class RobotCardScrollAdapter extends CardScrollAdapter {
     }
 
     @Override
-    public int findIdPosition(Object id) {
-        return -1;
-    }
-
-    @Override
-    public int findItemPosition(Object item) {
-        return mRobotList.indexOf(item);
-    }
-
-    @Override
     public int getCount() {
         return mRobotList.size();
     }
@@ -97,4 +87,10 @@ public class RobotCardScrollAdapter extends CardScrollAdapter {
 
         return convertView;
     }
+
+	@Override
+	public int getPosition(Object arg0) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 }

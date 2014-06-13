@@ -16,8 +16,9 @@
 <fullyQualifiedTypeName name="android.bluetooth.BluetoothSocket"/>
 <fullyQualifiedTypeName name="com.riverlab.robotmanager.R.string"/>
 <fullyQualifiedTypeName name="com.riverlab.robotmanager.R.drawable"/>
-<fullyQualifiedTypeName name="android.os.Message"/>
 <fullyQualifiedTypeName name="com.riverlab.robotmanager.MainActivity"/>
 <fullyQualifiedTypeName name="android.os.Bundle"/>
 <fullyQualifiedTypeName name="com.riverlab.robotmanager.RobotManagerApplication"/>
+<fullyQualifiedTypeName name="android.os.Message"/>
+<fullyQualifiedTypeName name="java.lang.String"/>
 </qualifiedTypeNameHistroy>
