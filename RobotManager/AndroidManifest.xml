@@ -10,6 +10,7 @@
     
     <uses-permission android:name="android.permission.BLUETOOTH" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+	<uses-permission android:name="com.google.android.glass.permission.DEVELOPMENT" />
 
     <application
         android:name="com.riverlab.robotmanager.RobotManagerApplication"
@@ -31,11 +32,11 @@
         </activity>
         
         <activity
-            android:name="com.riverlab.robotmanager.BluetoothDevicesListActivity"
+            android:name="com.riverlab.robotmanager.bluetooth.BluetoothDevicesListActivity"
             android:label="@string/available_devices_label"/>
         
         <activity
-            android:name="com.riverlab.robotmanager.ViewRobotListActivity"
+            android:name="com.riverlab.robotmanager.robot.ViewRobotListActivity"
             android:label="@string/view_robots_label"/>
     </application>
 

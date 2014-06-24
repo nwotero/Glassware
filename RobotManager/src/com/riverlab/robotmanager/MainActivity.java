@@ -12,6 +12,7 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Parcelable;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -32,6 +33,11 @@ import com.google.glass.logging.FormattingLoggers;
 import com.google.glass.logging.Log;
 import com.google.glass.voice.VoiceCommand;
 import com.google.glass.voice.VoiceConfig;
+import com.riverlab.robotmanager.bluetooth.BluetoothDevicesListActivity;
+import com.riverlab.robotmanager.bluetooth.ConnectedThread;
+import com.riverlab.robotmanager.messages.MessageActivity;
+import com.riverlab.robotmanager.robot.ViewRobotListActivity;
+import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -48,35 +54,49 @@ public class MainActivity extends Activity {
 	private ConnectedThread mConnectedThread;
 	private boolean isConnected = false;
 
-	public static final int REQUEST_ROBOT_INFO = 0; //Glass asks server for info
-	public static final int ROBOT_INFO_UPDATE = 1;  //Server pushes robot info
-	public static final int SEND_COMMAND = 2;		//Glass is sending a command to server
-	public static final int RECEIVE_COMMAND = 3;	//Server pushes command to Glass
-	public static final int NOTIFICATION = 4;		//Server pushes notification to Glass
-	public static final int CONFIRMATION = 5;
+	public static final int TEXT_MESSAGE = 0;
+	public static final int IMAGE_MESSAGE = 1;
+	public static final int VIDEO_MESSAGE = 2;
+	public static final int CONNECTION_MESSAGE = 3;
+	public static final int FOCUS_MESSAGE = 4;
+	public static final int COMMAND_MESSAGE = 5;
+
 
 	//This Handler handles messages sent from the ConnectedThread for received bluetooth messages
 	private final Handler mHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
-			case REQUEST_ROBOT_INFO:
+			case TEXT_MESSAGE:
+				Intent messageIntent = new Intent(MainActivity.this, MessageActivity.class);
+				messageIntent.putExtra("Message", (Parcelable)msg.obj);
+				startActivity(messageIntent);
 				break;
-			case ROBOT_INFO_UPDATE:
+			case CONNECTION_MESSAGE:
+				String text = (String)msg.obj;
+				if (text.equals("connected"))
+				{
+					connectionStatusTextView.setText(R.string.connected);
+					imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
+				}
+				else if (text.equals("disconnected"))
+				{
+					connectionStatusTextView.setText(R.string.not_connected);
+					imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
+				}
 				break;
-			case SEND_COMMAND:
+			case FOCUS_MESSAGE:
 				break;
-			case RECEIVE_COMMAND:
-				break;
-			case NOTIFICATION:
-				break;
-			case CONFIRMATION:
+			case COMMAND_MESSAGE:
+				String cmdText = (String)msg.obj;
+				
+				//Change the GUI to show the recognized command
+				commandView.setText("Command: " + cmdText);
 				break;
 			}
 		}
 	};
 
-	
 	//Timeline global variables
 	private RobotManagerApplication mApplication;
 	private RemoteViews aRV;
@@ -89,105 +109,9 @@ public class MainActivity extends Activity {
 	private GestureDetector mGestureDetector;
 	private TextView commandView;
 
-	//Global variables for continuous listening
-	private VoiceInputHelper mVoiceInputHelper;
-	private VoiceConfig mVoiceConfig;
-
-	//This class is used to continuously listen for user input 
-	public class MyVoiceListener implements VoiceListener {
-		protected final VoiceConfig voiceConfig;
-
-		public MyVoiceListener(VoiceConfig voiceConfig) {
-			this.voiceConfig = voiceConfig;
-		}
-
-		@Override
-		public void onVoiceServiceConnected() {
-			mVoiceInputHelper.setVoiceConfig(mVoiceConfig, false);
-		}
-
-		@Override
-		public void onVoiceServiceDisconnected() {
-
-		}
-
-		//This method handles recognized voice commands
-		@Override
-		public VoiceConfig onVoiceCommand(VoiceCommand vc) {
-			String recognizedStr = vc.getLiteral();
-			Log.i("VoiceActivity", "Recognized text: "+recognizedStr);
-
-			//Change the GUI to show the recognized command
-			commandView.setText("Command: " + recognizedStr);
-
-			//Check to see if the command is to connect to a bluetooth device
-			if (recognizedStr.startsWith("connect to"))
-			{
-				if (!isConnected) //If already connected do not connect
-				{
-					for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
-					{
-						if (device.getName().equals(recognizedStr.substring(11)))
-						{
-							BluetoothSocket socket = mApplication.connectToDevice(device);
-							mConnectedThread = new ConnectedThread(socket, mHandler, mApplication);
-							connectionStatusTextView.setText(R.string.connected);
-							imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
-							isConnected = true;
-							return voiceConfig;
-						}
-					}
-				}
-			}
-			else if (recognizedStr.equals("end connection"))
-			{
-				if (mConnectedThread != null)
-				{
-					mConnectedThread.write("end connection\n".getBytes());
-					isConnected = false;
-					connectionStatusTextView.setText(R.string.not_connected);
-					imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
-					mConnectedThread = null;
-				}
-			}
-			else if (mConnectedThread != null)
-			{
-				mConnectedThread.write(recognizedStr.getBytes());
-			}
-
-			return voiceConfig;
-		}
-
-		@Override
-		public FormattingLogger getLogger() {
-			return FormattingLoggers.getContextLogger();
-		}
-
-		@Override
-		public boolean isRunning() {
-			return true;
-		}
-
-		@Override
-		public boolean onResampledAudioData(byte[] arg0, int arg1, int arg2) {
-			return false;
-		}
-
-		//This may be considered in order to differentiate commands from normal
-		//speech
-		@Override
-		public boolean onVoiceAmplitudeChanged(double arg0) {
-			return false;
-		}
-
-		@Override
-		public void onVoiceConfigChanged(VoiceConfig arg0, boolean arg1) {
-
-		}
-	}
-
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
+	protected void onCreate(Bundle savedInstanceState) 
+	{
 		super.onCreate(savedInstanceState);
 
 		mGestureDetector = createGestureDetector(this);
@@ -197,50 +121,24 @@ public class MainActivity extends Activity {
 		imageView = (ImageView) findViewById(R.id.imageView);
 		commandView = (TextView)findViewById(R.id.commandView);
 		mApplication = ((RobotManagerApplication) this.getApplication());
-		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-		//Pre-set commands
-		String[] commands = {//"straight", "forward", 
-				//"turn left", "left", 
-				//"turn right", "right", 
-				//"stop", "back", 
-				"drive forward", "drive backward", "turn left", "turn right",
-				"look up", "look down", "look left", "look right",
-				"move arm up", "move arm down", "move arm left", "move arm right",
-				"open scoop", "close scoop", "again",
-				"end connection"};
-		ArrayList<String> commandList = new ArrayList<String>();
-
-		for (String command : commands)
-		{
-			commandList.add(command);
-		}
-
-		//Prefix all bluetooth device names with "connect to " to allow the
-		//user to connect through voice control
-		for (BluetoothDevice device : mBluetoothAdapter.getBondedDevices())
-		{
-			commandList.add("connect to " + device.getName());
-		}
-
-		//Set up command listener
-		mVoiceConfig = new VoiceConfig("MyVoiceConfig", commandList.toArray(new String[commandList.size()]));
-		mVoiceInputHelper = new VoiceInputHelper(this, new MyVoiceListener(mVoiceConfig),
-				VoiceInputHelper.newUserActivityObserver(this));
+		mApplication.setMainActivity(this);
+		mApplication.setConnectedThread(new ConnectedThread(mHandler, mApplication));
+		mApplication.setVoiceThread(new VoiceRecognitionThread(mApplication, this));
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
 		imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
-		mVoiceInputHelper.addVoiceServiceListener();
+		//mApplication.getVoiceThread().setListeningStatus(true);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
-		mVoiceInputHelper.removeVoiceServiceListener();
+		mApplication.getVoiceThread().setListeningStatus(false);
 		getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
@@ -257,10 +155,10 @@ public class MainActivity extends Activity {
 		// Handle item selection.
 		switch (item.getItemId()) {
 		case R.id.viewDevices:
-			startActivityForResult(new Intent(this, BluetoothDevicesListActivity.class), 1);
+			launchBluetoothListActivity();
 			return true;
 		case R.id.viewRobots:
-			startActivity(new Intent(this, ViewRobotListActivity.class));
+			launchRobotListActivity();
 			return true;
 		case R.id.close:
 			if (mConnectedThread != null)
@@ -270,29 +168,6 @@ public class MainActivity extends Activity {
 			finish();            	
 		default:
 			return super.onOptionsItemSelected(item);
-		}
-	}
-
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
-		if (requestCode == 1) {
-
-			if(resultCode == RESULT_OK){      
-				String result = data.getStringExtra("result");
-
-				if (result.equals("Success"))
-				{
-					connectionStatusTextView.setText(R.string.connected);
-					imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
-					BluetoothSocket socket = ((RobotManagerApplication)this.getApplication()).getBluetoothSocket();
-					mConnectedThread = new ConnectedThread(socket, mHandler, mApplication);
-					isConnected = true;
-				}
-				else
-				{
-					connectionStatusTextView.setText(R.string.not_connected);
-				}
-			}
 		}
 	}
 
@@ -321,5 +196,20 @@ public class MainActivity extends Activity {
 			return mGestureDetector.onMotionEvent(event);
 		}
 		return false;
+	}
+	
+	public void setCommandView(String cmdText)
+	{
+		commandView.setText("Command: " + cmdText);
+	}
+	
+	public void launchBluetoothListActivity()
+	{
+		startActivity(new Intent(this, BluetoothDevicesListActivity.class));
+	}
+	
+	public void launchRobotListActivity()
+	{
+		startActivity(new Intent(this, ViewRobotListActivity.class));
 	}
 }

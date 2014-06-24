@@ -10,5 +10,6 @@
     <string name="not_connected">Not Connected</string>
     <string name="connected">Connected</string>
     <string name="init_command">Command: None</string>
-    
+    <string name="message_placeholder">Alert from Robot</string>
+    <string name="message_txt_placeholder">Message text goes here</string>
 </resources>

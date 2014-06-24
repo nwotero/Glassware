@@ -1,137 +1,131 @@
 package com.riverlab.robotmanager;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Set;
+
+import com.riverlab.robotmanager.bluetooth.ConnectedThread;
+import com.riverlab.robotmanager.messages.MessageListActivity;
+import com.riverlab.robotmanager.messages.RobotMessage;
+import com.riverlab.robotmanager.robot.Robot;
+import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import android.app.Application;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
-import android.util.Log;
+
 
 public class RobotManagerApplication extends Application
 {
-	private BluetoothSocket mBluetoothSocket;
-	private BluetoothAdapter mBluetoothAdapter;
-	private ArrayList<Robot> mRobots;
+	private ConnectedThread mConnectedThread;
+	private VoiceRecognitionThread mVoiceThread;
+	private MainActivity mMainActivity;
+	private HashMap<String, Robot> mRobotMap = new HashMap<String, Robot>();
+	private boolean isConnected;
+	private Robot robotInFocus;
+	private ArrayList<RobotMessage> msgs = new ArrayList<RobotMessage>();
+	private MessageListActivity msgListActivity = null;
 	
-	public BluetoothSocket connectToDevice(BluetoothDevice device) 
+	public MainActivity getMainActivity()
 	{
-		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		
-		Log.d("RobotManagerBluetooth", "Attempting to connect to device");
-		// Discovery is resource intensive.  Make sure it isn't going on
-		// when you attempt to connect and pass your message.
-		mBluetoothAdapter.cancelDiscovery();
-
-		// Create a Rfcomm Socket between the Server and Glass
-		Log.d("RobotManagerBluetooth", "Attempting to create Rfcomm Socket");
-		Method m;
-		try {
-			m = device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}); 
-			mBluetoothSocket = (BluetoothSocket) m.invoke(device, 1); 
-			Log.d("RobotManagerBluetooth", "Rfcomm Socket created");
-		} 
-		catch (NoSuchMethodException e) {
-			e.printStackTrace();
-			return null;
-		}
-		catch (IllegalArgumentException e) {
-			e.printStackTrace();
-			return null;
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-			return null;
-		} catch (InvocationTargetException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-		// Establish the connection.  This will block until it connects.
-		Log.d("RobotManagerBluetooth", "Attempting to open socket");
-		try {
-			mBluetoothSocket.connect();
-			Log.d("RobotManagerBluetooth", "Connection established");
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-		// Create a data stream so we can talk to server.
-		Log.d("RobotManagerBluetooth", "Sending confirmation message to server");
-		OutputStream outStream;
-		try {
-			outStream = mBluetoothSocket.getOutputStream();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-		String message = "Confirm connection\n";
-		byte[] msgBuffer = message.getBytes();
-		try {
-			Log.d("RobotManagerBluetooth", "Writing message");
-			outStream.write(msgBuffer);
-			Log.d("RobotManagerBluetooth", "Message written");
-		} catch (IOException e) {
-			e.printStackTrace();   
-			return null;
-		}
-
-		// Listen for confirmation from the server.
-		Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
-		InputStream inStream;
-		try {
-			inStream = mBluetoothSocket.getInputStream();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-		String confirmString = "Connection confirmed\n";
-		byte[] receivedBytes = new byte[confirmString.getBytes().length];
-		try
+		return mMainActivity;
+	}
+	
+	public ConnectedThread getConnectedThread()
+	{
+		return mConnectedThread;
+	}
+	
+	public VoiceRecognitionThread getVoiceThread()
+	{
+		return mVoiceThread;
+	}
+	
+	
+	public void setMainActivity(MainActivity act)
+	{
+		mMainActivity = act;
+	}
+	
+	public void setConnectedThread(ConnectedThread thread)
+	{
+		mConnectedThread = thread;
+	}
+	
+	public void setVoiceThread(VoiceRecognitionThread thread)
+	{
+		mVoiceThread = thread;
+	}
+	
+	public void setMsgListActivity(MessageListActivity mla)
+	{
+		msgListActivity = mla;
+	}
+	
+	public boolean getConnectionStatus()
+	{
+		return isConnected;
+	}
+	
+	
+	public void setConnectionStatus(boolean isConnected)
+	{
+		this.isConnected = isConnected;
+	}
+	
+	
+	public Set<String> getRobotNames()
+	{
+		return mRobotMap.keySet();
+	}
+	
+	public Collection<Robot> getRobots()
+	{
+		return mRobotMap.values();
+	}
+	
+	public Robot getRobot(String name)
+	{
+		return mRobotMap.get(name);
+	}
+	
+	public void addRobot(Robot newRobot)
+	{
+		mRobotMap.put(newRobot.getName(), newRobot);
+		mVoiceThread.onRobotAddition(newRobot.getName());
+	}
+	
+	public void removeRobot(Robot robot)
+	{
+		mRobotMap.remove(robot.getName());
+		mVoiceThread.onRobotRemoval(robot.getName());
+	}
+	
+	public Robot getRobotInFocus()
+	{
+		return robotInFocus;
+	}
+	
+	public void setRobotInFocus(String robotName)
+	{
+		if (robotName.equals("All"))
 		{
-			inStream.read(receivedBytes);
-		} catch (IOException e){
-			e.printStackTrace();
-			return null;
+			robotInFocus = null;
 		}
-		String receivedString = new String(receivedBytes);
-		if (receivedString.equals(confirmString))
+		robotInFocus = mRobotMap.get(robotName);
+
+	}
+	
+	public void addMessage(RobotMessage newMsg)
+	{
+		msgs.add(0, newMsg);
+		if (msgListActivity != null)
 		{
-			Log.d("RobotManagerBluetooth", "Coonnection confirmed");
-			return mBluetoothSocket;
-		}
-		else
-		{
-			Log.d("RobotManagerBluetooth", "Confirmation not received");
-			return null;
+			msgListActivity.onMessageAddition();
 		}
 	}
 	
-	
-	public BluetoothSocket getBluetoothSocket()
+	public ArrayList<RobotMessage> getMessages()
 	{
-		return mBluetoothSocket;
-	}
-	
-	public void setBluetoothSocket(BluetoothSocket newBluetoothSocket)
-	{
-		mBluetoothSocket = newBluetoothSocket;
-	}
-	
-	public ArrayList<Robot> getRobotList()
-	{
-		return mRobots;
-	}
-	
-	public void setRobotList(ArrayList<Robot> newRobotList)
-	{
-		mRobots = newRobotList;
+		return msgs;
 	}
 }
