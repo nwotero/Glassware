@@ -125,7 +125,7 @@ public class MainActivity extends Activity {
 	{
 		super.onCreate(savedInstanceState);
 
-		//android.os.Debug.waitForDebugger();
+		android.os.Debug.waitForDebugger();
 		
 		mGestureDetector = createGestureDetector(this);
 

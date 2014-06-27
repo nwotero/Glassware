@@ -70,7 +70,7 @@ public class Vocabulary
 			{
 				continue;
 			}
-			
+
 			Element subVocab = (Element) subVocabNodes.item(i);
 			String subVocabName = subVocab.getAttribute("name");
 
@@ -82,7 +82,7 @@ public class Vocabulary
 				{
 					continue;
 				}
-				
+
 				Element phraseNode = (Element) phraseNodes.item(j);
 
 				String tempName = phraseNode.getAttribute("text");
@@ -206,9 +206,18 @@ public class Vocabulary
 			{			
 				for (String subVocabName : nextSubVocabs)
 				{
-					for (Phrase phrase : mSubVocabMap.get(subVocabName))
+					try
 					{
-						rtnList.add(phrase.getText());
+						for (Phrase phrase : mSubVocabMap.get(subVocabName))
+						{
+							rtnList.add(phrase.getText());
+						}
+					}
+					catch (NullPointerException e)
+					{
+						Log.w("Vocabulary", 
+								"No subvocabulary \"" + subVocabName + "\" was found. Please check your vocabulary XML file.");
+						e.printStackTrace();
 					}
 				}
 			}
@@ -286,7 +295,7 @@ public class Vocabulary
 				Modifier usedMod = findModifier(previous.remove(0), modifiers);
 				if (usedMod == null)
 				{
-					Log.i("CommandInterpreter", "Error finding modifier, check for voice recognition bounce");
+					Log.d("CommandInterpreter", "Error finding modifier, check for voice recognition bounce");
 				}
 				return usedMod.getNextSubVocabs(previous);
 			}
@@ -304,26 +313,22 @@ public class Vocabulary
 			this.uses = modifierNode.getAttribute("use");
 			this.isRequired = modifierNode.getAttribute("required") != "false";
 
+			Log.d("Vocabulary", "Constructing modifier using " + this.uses);
+
 			NodeList additionalMods = modifierNode.getChildNodes();
 
-			if (additionalMods.getLength() == 0)
-			{
-				this.modifiers = new ArrayList<Vocabulary.Modifier>();
-			}
-			else
-			{
-				ArrayList<Modifier> tempList = new ArrayList<Vocabulary.Modifier>();
-				for (int i = 0; i < additionalMods.getLength(); i++)
-				{
-					if (!(additionalMods.item(i).getNodeType() == Node.ELEMENT_NODE))
-					{
-						continue;
-					}
-					
-					Element elm = (Element)additionalMods.item(i);
+			this.modifiers = new ArrayList<Vocabulary.Modifier>();
 
-					tempList.add(new Modifier(elm));
+			for (int i = 0; i < additionalMods.getLength(); i++)
+			{
+				if (!(additionalMods.item(i).getNodeType() == Node.ELEMENT_NODE))
+				{
+					continue;
 				}
+
+				Element elm = (Element)additionalMods.item(i);
+
+				this.modifiers.add(new Modifier(elm));
 			}
 		}
 

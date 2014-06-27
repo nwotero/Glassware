@@ -358,7 +358,7 @@ public class VoiceRecognitionThread extends HandlerThread
 					//If the recognized string is not a system command, it must be a robot command
 					else if (!recognizedStr.equals("Start listening"))
 					{
-						if (mHelper == null)
+						if (mHelper == 	null)
 						{
 							Robot focus = mApplication.getRobotInFocus();
 							if (focus == null)

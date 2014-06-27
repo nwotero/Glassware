@@ -223,7 +223,6 @@ public class ConnectedThread extends HandlerThread
 				}
 
 				bufferString += (new String(buffer).trim());
-				Log.d("ConnectedThread", "Read: " + bufferString);
 
 				if (bufferString.contains("_END"))
 				{
@@ -233,8 +232,7 @@ public class ConnectedThread extends HandlerThread
 							bufferString.indexOf("_END")+4);
 
 
-					Log.d("ConnectedThread", "Message: " + messageString);
-					Log.d("ConnectedThread", "Leftover buffer: " + bufferString);
+					Log.d("ConnectedThread", "Message read");
 
 					String[] messageParts = messageString.split("_DELIM_");
 					Log.d("ConnectedThread", "Message type: " + messageParts[0]);
