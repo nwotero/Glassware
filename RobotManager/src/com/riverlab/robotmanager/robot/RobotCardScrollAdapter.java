@@ -79,6 +79,7 @@ public class RobotCardScrollAdapter extends CardScrollAdapter {
 			holder.infoTextView.setText(robot.getInfo());
 			holder.infoTextView.setLayoutParams(lp);
 			holder.infoTextView.setGravity(Gravity.LEFT);
+			holder.infoTextView.setPadding(30, 10, 30, 10);
 			ll.addView(holder.infoTextView);
 			
 			convertView.setTag(holder);

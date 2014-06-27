@@ -5,6 +5,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -13,17 +14,21 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import android.util.Log;
+
 public class Vocabulary 
 {
-	ArrayList<String> defaultSubVocabs;
-	private HashMap<String, ArrayList<Phrase>> subVocabs;
+	List<String> mDefaultSubVocabList;
+	private HashMap<String, ArrayList<Phrase>> mSubVocabMap;
 
 	public Vocabulary (String rawXML)
 	{
+		Log.d("Vocabulary", "Creating vocabulary from XML");
 		//Create the builder factory
 		DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder builder = null;
@@ -37,6 +42,7 @@ public class Vocabulary
 
 		//Use InputSource and StringReader to represent the rawXML String object
 		//as a file and parse it using the builder. 
+		Log.d("Vocabulary", "Reading document");
 		Document document = null;
 		try {
 			InputSource is = new InputSource(new StringReader(rawXML));
@@ -47,25 +53,37 @@ public class Vocabulary
 			e.printStackTrace();
 		}
 
-		//Get the defualt sub-vocabs from the root vocab elemement's attributes
+		//Get the default sub-vocabs from the root vocab elemement's attributes
 		Element rootElement = document.getDocumentElement();
 		String defaultSubVocabs = rootElement.getAttribute("default");
+		Log.d("Vocabulary", "Root element: " + rootElement.getTagName());
 		String[] defaultSubVocabArray = defaultSubVocabs.split(",");
-		this.defaultSubVocabs = (ArrayList<String>) Arrays.asList(defaultSubVocabArray);
+		this.mDefaultSubVocabList = Arrays.asList(defaultSubVocabArray);
 
-		NodeList subVocabs = rootElement.getChildNodes();
-		HashMap<String, ArrayList<Phrase>> subVocabMap = new HashMap<String, ArrayList<Phrase>>();
+		NodeList subVocabNodes = rootElement.getChildNodes();
+		mSubVocabMap = new HashMap<String, ArrayList<Phrase>>();
 
-		for (int i = 0; i < subVocabs.getLength(); i++)
+		Log.d("Vocabulary", "Reading sub-vocabs");
+		for (int i = 0; i < subVocabNodes.getLength(); i++)
 		{
-			Element subVocab = (Element) subVocabs.item(i);
+			if (!(subVocabNodes.item(i).getNodeType() == Node.ELEMENT_NODE))
+			{
+				continue;
+			}
+			
+			Element subVocab = (Element) subVocabNodes.item(i);
 			String subVocabName = subVocab.getAttribute("name");
 
 			NodeList phraseNodes = subVocab.getChildNodes();
 			ArrayList<Phrase> phrases = new ArrayList<Phrase>();
 			for (int j = 0; j < phraseNodes.getLength(); j++)
 			{
-				Element phraseNode = (Element) phraseNodes.item(i);
+				if (!(phraseNodes.item(j).getNodeType() == Node.ELEMENT_NODE))
+				{
+					continue;
+				}
+				
+				Element phraseNode = (Element) phraseNodes.item(j);
 
 				String tempName = phraseNode.getAttribute("text");
 
@@ -80,6 +98,10 @@ public class Vocabulary
 					ArrayList<Modifier> tempModList = new ArrayList<Vocabulary.Modifier>();
 					for (int k = 0; k < modifiers.getLength(); k++)
 					{
+						if (!(modifiers.item(k).getNodeType() == Node.ELEMENT_NODE))
+						{
+							continue;
+						}
 						//Construct the remainder depth of this tree using 
 						//recursive modifier constructor
 						Element mod = (Element)modifiers.item(k);
@@ -88,14 +110,14 @@ public class Vocabulary
 					phrases.add(new Phrase(tempName, tempModList));
 				}
 			}
-			subVocabMap.put(subVocabName, phrases);
+			mSubVocabMap.put(subVocabName, phrases);
 		}
 	}
 
 	public Phrase findPhrase(String phraseText)
 	{
 		//Search sub-vocabularies for phrase
-		for (Map.Entry<String, ArrayList<Phrase>> subVocab : subVocabs.entrySet())
+		for (Map.Entry<String, ArrayList<Phrase>> subVocab : mSubVocabMap.entrySet())
 		{
 			ArrayList<Phrase> phrases = subVocab.getValue();
 
@@ -118,7 +140,7 @@ public class Vocabulary
 
 		//Search sub-vocabularies for phrase
 		searchloop:
-			for (Map.Entry<String, ArrayList<Phrase>> subVocab : subVocabs.entrySet())
+			for (Map.Entry<String, ArrayList<Phrase>> subVocab : mSubVocabMap.entrySet())
 			{
 				ArrayList<Phrase> phrases = subVocab.getValue();
 
@@ -150,39 +172,41 @@ public class Vocabulary
 		boolean isRequired = true;
 		boolean reset = false;
 
+		//If no phrases have been said, return the default list
 		if (previous.size() == 0)
 		{
-			for (String subVocabName : defaultSubVocabs)
+			for (String subVocabName : mDefaultSubVocabList)
 			{
-				for (Phrase phrase : subVocabs.get(subVocabName))
+				for (Phrase phrase : mSubVocabMap.get(subVocabName))
 				{
 					rtnList.add(phrase.getText());
 				}
 			}
 		}
-		else
+		else //If a phrase has already been said
 		{
 			Phrase rootPhrase = findPhrase(previous.remove(0));
 			VocabMessage msg = rootPhrase.getNextSubVocabs(previous);
 			ArrayList<String> nextSubVocabs = msg.subVocabNames;
 			isRequired = msg.isRequired();
 
+			//If there is nothing left to say, return default list and reset
 			if (nextSubVocabs.size() == 0)
 			{
-				for (String subVocabName : defaultSubVocabs)
+				for (String subVocabName : mDefaultSubVocabList)
 				{
-					for (Phrase phrase : subVocabs.get(subVocabName))
+					for (Phrase phrase : mSubVocabMap.get(subVocabName))
 					{
 						rtnList.add(phrase.getText());
 					}
 				}
 				reset = true;
 			}
-			else
+			else //If there are still phrases left to say, get them from their subVocabs
 			{			
 				for (String subVocabName : nextSubVocabs)
 				{
-					for (Phrase phrase : subVocabs.get(subVocabName))
+					for (Phrase phrase : mSubVocabMap.get(subVocabName))
 					{
 						rtnList.add(phrase.getText());
 					}
@@ -260,6 +284,10 @@ public class Vocabulary
 			else
 			{
 				Modifier usedMod = findModifier(previous.remove(0), modifiers);
+				if (usedMod == null)
+				{
+					Log.i("CommandInterpreter", "Error finding modifier, check for voice recognition bounce");
+				}
 				return usedMod.getNextSubVocabs(previous);
 			}
 		}
@@ -273,7 +301,7 @@ public class Vocabulary
 
 		public Modifier(Element modifierNode)
 		{
-			this.uses = modifierNode.getAttribute("uses");
+			this.uses = modifierNode.getAttribute("use");
 			this.isRequired = modifierNode.getAttribute("required") != "false";
 
 			NodeList additionalMods = modifierNode.getChildNodes();
@@ -287,6 +315,11 @@ public class Vocabulary
 				ArrayList<Modifier> tempList = new ArrayList<Vocabulary.Modifier>();
 				for (int i = 0; i < additionalMods.getLength(); i++)
 				{
+					if (!(additionalMods.item(i).getNodeType() == Node.ELEMENT_NODE))
+					{
+						continue;
+					}
+					
 					Element elm = (Element)additionalMods.item(i);
 
 					tempList.add(new Modifier(elm));

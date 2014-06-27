@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -87,7 +89,17 @@ public class BluetoothDevicesListActivity extends Activity implements AdapterVie
 		switch (item.getItemId()) {
 		case R.id.connectMenuItem:
 			//Connect to mSelectedDevice
-			if (mApplication.getConnectedThread().connect(mSelectedDevice.getName()))
+			
+			Handler connectedHandler = mApplication.getConnectedThreadHandler();
+			Message msg = connectedHandler.obtainMessage(ConnectedThread.CONNECT_MESSAGE, mSelectedDevice.getName());
+			connectedHandler.sendMessage(msg);
+			
+			long now = System.currentTimeMillis();
+			int threshold = 2000;
+			
+			while(!mApplication.getConnectionStatus() && System.currentTimeMillis() - now < threshold);
+			
+			if (mApplication.getConnectionStatus())
 			{
 				Intent returnIntent = new Intent();
 				returnIntent.putExtra("result", "Success");

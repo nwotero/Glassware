@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 
+import com.google.glass.logging.Log;
 import com.riverlab.robotmanager.bluetooth.ConnectedThread;
 import com.riverlab.robotmanager.messages.MessageListActivity;
 import com.riverlab.robotmanager.messages.RobotMessage;
@@ -12,109 +13,120 @@ import com.riverlab.robotmanager.robot.Robot;
 import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Message;
 
 
 public class RobotManagerApplication extends Application
 {
-	private ConnectedThread mConnectedThread;
-	private VoiceRecognitionThread mVoiceThread;
-	private MainActivity mMainActivity;
+	private Handler mMainThreadHandler;
+	private Handler mConnectedThreadHandler;
+	private Handler mVoiceThreadHandler;
 	private HashMap<String, Robot> mRobotMap = new HashMap<String, Robot>();
 	private boolean isConnected;
 	private Robot robotInFocus;
 	private ArrayList<RobotMessage> msgs = new ArrayList<RobotMessage>();
 	private MessageListActivity msgListActivity = null;
-	
-	public MainActivity getMainActivity()
+
+	public Handler getMainActivityHandler()
 	{
-		return mMainActivity;
+		return mMainThreadHandler;
 	}
-	
-	public ConnectedThread getConnectedThread()
+
+	public Handler getConnectedThreadHandler()
 	{
-		return mConnectedThread;
+		return mConnectedThreadHandler;
 	}
-	
-	public VoiceRecognitionThread getVoiceThread()
+
+	public Handler getVoiceThreadHandler()
 	{
-		return mVoiceThread;
+		return mVoiceThreadHandler;
 	}
-	
-	
-	public void setMainActivity(MainActivity act)
+
+
+	public void setMainThreadHandler(Handler mainHandler)
 	{
-		mMainActivity = act;
+		mMainThreadHandler = mainHandler;
 	}
-	
-	public void setConnectedThread(ConnectedThread thread)
+
+	public void setConnectedThreadHandler(Handler connectedHandler)
 	{
-		mConnectedThread = thread;
+		mConnectedThreadHandler = connectedHandler;
 	}
-	
-	public void setVoiceThread(VoiceRecognitionThread thread)
+
+	public void setVoiceThreadHandler(Handler voiceHandler)
 	{
-		mVoiceThread = thread;
+		mVoiceThreadHandler = voiceHandler;
 	}
-	
+
 	public void setMsgListActivity(MessageListActivity mla)
 	{
 		msgListActivity = mla;
 	}
-	
+
 	public boolean getConnectionStatus()
 	{
 		return isConnected;
 	}
-	
-	
+
+
 	public void setConnectionStatus(boolean isConnected)
 	{
 		this.isConnected = isConnected;
 	}
-	
-	
+
+
 	public Set<String> getRobotNames()
 	{
 		return mRobotMap.keySet();
 	}
-	
+
 	public Collection<Robot> getRobots()
 	{
 		return mRobotMap.values();
 	}
-	
+
 	public Robot getRobot(String name)
 	{
 		return mRobotMap.get(name);
 	}
-	
+
 	public void addRobot(Robot newRobot)
 	{
+		Log.i("Application", "In addRobot");
 		mRobotMap.put(newRobot.getName(), newRobot);
-		mVoiceThread.onRobotAddition(newRobot.getName());
+
+		Message msg = mVoiceThreadHandler.obtainMessage(VoiceRecognitionThread.ADD_VOCAB_MESSAGE, newRobot.getName());
+		mVoiceThreadHandler.sendMessageAtFrontOfQueue(msg);
+
+		Log.i("Application", "Finished addRobot");
 	}
-	
+
 	public void removeRobot(Robot robot)
 	{
 		mRobotMap.remove(robot.getName());
-		mVoiceThread.onRobotRemoval(robot.getName());
+
+		Message msg = mVoiceThreadHandler.obtainMessage(VoiceRecognitionThread.REMOVE_VOCAB_MESSAGE, robot.getName());
+		mVoiceThreadHandler.sendMessageAtFrontOfQueue(msg);
 	}
-	
+
 	public Robot getRobotInFocus()
 	{
 		return robotInFocus;
 	}
-	
+
 	public void setRobotInFocus(String robotName)
 	{
 		if (robotName.equals("All"))
 		{
 			robotInFocus = null;
 		}
-		robotInFocus = mRobotMap.get(robotName);
-
+		else
+		{
+			robotInFocus = mRobotMap.get(robotName);
+		}	
 	}
-	
+
 	public void addMessage(RobotMessage newMsg)
 	{
 		msgs.add(0, newMsg);
@@ -123,9 +135,24 @@ public class RobotManagerApplication extends Application
 			msgListActivity.onMessageAddition();
 		}
 	}
-	
+
 	public ArrayList<RobotMessage> getMessages()
 	{
 		return msgs;
+	}
+
+	public void onShutdown()
+	{
+		Message msgMain = mMainThreadHandler.obtainMessage();
+		msgMain.what = MainActivity.SHUTDOWN_MESSAGE;
+		mMainThreadHandler.sendMessageAtFrontOfQueue(msgMain);
+		
+		Message msgConnected = mConnectedThreadHandler.obtainMessage(ConnectedThread.SHUTDOWN_MESSAGE);
+		msgConnected.what = ConnectedThread.SHUTDOWN_MESSAGE;
+		mConnectedThreadHandler.sendMessageAtFrontOfQueue(msgConnected);
+		
+		Message msgVoice = mVoiceThreadHandler.obtainMessage(VoiceRecognitionThread.SHUTDOWN_MESSAGE);
+		msgVoice.what = VoiceRecognitionThread.SHUTDOWN_MESSAGE;
+		mVoiceThreadHandler.sendMessageAtFrontOfQueue(msgVoice);
 	}
 }

@@ -36,6 +36,7 @@ import com.google.glass.voice.VoiceConfig;
 import com.riverlab.robotmanager.bluetooth.BluetoothDevicesListActivity;
 import com.riverlab.robotmanager.bluetooth.ConnectedThread;
 import com.riverlab.robotmanager.messages.MessageActivity;
+import com.riverlab.robotmanager.messages.MessageListActivity;
 import com.riverlab.robotmanager.robot.ViewRobotListActivity;
 import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
@@ -53,13 +54,16 @@ public class MainActivity extends Activity {
 	private BluetoothAdapter mBluetoothAdapter;
 	private ConnectedThread mConnectedThread;
 	private boolean isConnected = false;
-
+	
+	//Handler constants and definition
 	public static final int TEXT_MESSAGE = 0;
 	public static final int IMAGE_MESSAGE = 1;
 	public static final int VIDEO_MESSAGE = 2;
 	public static final int CONNECTION_MESSAGE = 3;
 	public static final int FOCUS_MESSAGE = 4;
 	public static final int COMMAND_MESSAGE = 5;
+	public static final int SHUTDOWN_MESSAGE = 6;
+	public static final int ROBOT_LIST_MESSAGE = 7;
 
 
 	//This Handler handles messages sent from the ConnectedThread for received bluetooth messages
@@ -86,12 +90,18 @@ public class MainActivity extends Activity {
 				}
 				break;
 			case FOCUS_MESSAGE:
+				String focus = (String)msg.obj;
+				setFocusView(focus);
 				break;
 			case COMMAND_MESSAGE:
 				String cmdText = (String)msg.obj;
-				
-				//Change the GUI to show the recognized command
-				commandView.setText("Command: " + cmdText);
+				setCommandView(cmdText);
+				break;
+			case SHUTDOWN_MESSAGE:
+				shutdown();
+				break;
+			case ROBOT_LIST_MESSAGE:
+				launchRobotListActivity();
 				break;
 			}
 		}
@@ -108,23 +118,40 @@ public class MainActivity extends Activity {
 	private ImageView imageView;
 	private GestureDetector mGestureDetector;
 	private TextView commandView;
+	private TextView focusView;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) 
 	{
 		super.onCreate(savedInstanceState);
 
+		//android.os.Debug.waitForDebugger();
+		
 		mGestureDetector = createGestureDetector(this);
 
 		setContentView(R.layout.activity_main);
 		connectionStatusTextView = (TextView) findViewById(R.id.connectionStatus);
 		imageView = (ImageView) findViewById(R.id.imageView);
 		commandView = (TextView)findViewById(R.id.commandView);
+		focusView = (TextView)findViewById(R.id.focusView);
 		mApplication = ((RobotManagerApplication) this.getApplication());
+		
+		ConnectedThread connectedThread = new ConnectedThread(mHandler, mApplication);
+		VoiceRecognitionThread voiceThread = new VoiceRecognitionThread(mApplication, this);
 
-		mApplication.setMainActivity(this);
-		mApplication.setConnectedThread(new ConnectedThread(mHandler, mApplication));
-		mApplication.setVoiceThread(new VoiceRecognitionThread(mApplication, this));
+		mApplication.setMainThreadHandler(mHandler);
+		mApplication.setConnectedThreadHandler(connectedThread.getHandler());
+		mApplication.setVoiceThreadHandler(voiceThread.getHandler());
+		
+		connectedThread.setHandlers(mHandler, voiceThread.getHandler());
+		voiceThread.setHandlers(mHandler, connectedThread.getHandler());
+		
+		Thread.currentThread().setName("Main Activity Thread");
+		connectedThread.setName("Connected Thread");
+		voiceThread.setName("Voice Recognition Thread");
+		
+		connectedThread.start();
+		voiceThread.start();
 	}
 
 	@Override
@@ -138,7 +165,10 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onPause() {
 		super.onPause();
-		mApplication.getVoiceThread().setListeningStatus(false);
+		Handler voiceHandler = mApplication.getVoiceThreadHandler();
+		Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.LISTENING_MESSAGE, false);
+		voiceHandler.sendMessageAtFrontOfQueue(msg);
+		
 		getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
 
@@ -161,11 +191,7 @@ public class MainActivity extends Activity {
 			launchRobotListActivity();
 			return true;
 		case R.id.close:
-			if (mConnectedThread != null)
-			{
-				mConnectedThread.write("end connection\n".getBytes());
-			}
-			finish();            	
+			mApplication.onShutdown();
 		default:
 			return super.onOptionsItemSelected(item);
 		}
@@ -203,6 +229,11 @@ public class MainActivity extends Activity {
 		commandView.setText("Command: " + cmdText);
 	}
 	
+	public void setFocusView(String robotName)
+	{
+		focusView.setText("Focus: " + robotName);
+	}
+	
 	public void launchBluetoothListActivity()
 	{
 		startActivity(new Intent(this, BluetoothDevicesListActivity.class));
@@ -211,5 +242,16 @@ public class MainActivity extends Activity {
 	public void launchRobotListActivity()
 	{
 		startActivity(new Intent(this, ViewRobotListActivity.class));
+	}
+	
+	public void launchMessageListActivity()
+	{
+		startActivity(new Intent(this, MessageListActivity.class));
+	}
+	
+	public void shutdown()
+	{
+		//Should make sure all threads are closed before shutting down
+		finish();            	
 	}
 }

@@ -15,6 +15,7 @@ import com.riverlab.robotmanager.RobotManagerApplication;
 import com.riverlab.robotmanager.messages.RobotMessage;
 import com.riverlab.robotmanager.robot.Robot;
 import com.riverlab.robotmanager.voice_recognition.Vocabulary;
+import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -23,10 +24,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Message;
 import android.util.Log;
 
-public class ConnectedThread extends Thread
+public class ConnectedThread extends HandlerThread
 {
 	private BluetoothAdapter mBluetoothAdapter;
 	private BluetoothSocket mBtSocket;
@@ -37,6 +39,9 @@ public class ConnectedThread extends Thread
 
 	public static final int CONNECT_MESSAGE = 0;
 	public static final int DISCONNECT_MESSAGE = 1;
+	public static final int WRITE_MESSAGE = 2;
+	public static final int SHUTDOWN_MESSAGE = 3;
+
 
 	private Handler mainHandler;
 	private Handler voiceHandler;
@@ -50,8 +55,14 @@ public class ConnectedThread extends Thread
 				connect(deviceName);
 				break;
 			case DISCONNECT_MESSAGE:
-				write("end connection\n".getBytes());
-				mApplication.setConnectionStatus(false);
+				disconnect();
+				break;
+			case WRITE_MESSAGE:
+				String msgText = (String)msg.obj;
+				write(msgText.getBytes());
+				break;
+			case SHUTDOWN_MESSAGE:
+				shutdown();
 				break;
 			}
 		}
@@ -60,9 +71,21 @@ public class ConnectedThread extends Thread
 
 	public ConnectedThread(Handler mainHandler, RobotManagerApplication app) 
 	{
+		super("Bluetooth Connection Thread");
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		this.mainHandler = mainHandler;
 		mApplication = app;
+	}
+	
+	public void setHandlers(Handler mainHandler, Handler voiceHandler) 
+	{
+		this.mainHandler = mainHandler;
+		this.voiceHandler = voiceHandler;
+	}
+	
+	public Handler getHandler()
+	{
+		return mHandler;
 	}
 
 	public boolean connect(String deviceName)
@@ -156,7 +179,7 @@ public class ConnectedThread extends Thread
 					Message connectionMessage = new Message();
 					connectionMessage.what = MainActivity.CONNECTION_MESSAGE;
 					connectionMessage.obj = "connected";
-					mainHandler.sendMessage(connectionMessage);
+					mainHandler.sendMessageAtFrontOfQueue(connectionMessage);
 
 					return true;
 				}
@@ -171,31 +194,106 @@ public class ConnectedThread extends Thread
 		return false;
 	}
 
-	public void run() {
+	public void run() 
+	{
+		Log.d("ConnectedThread", "Running thread");
 
 		while (!isShutdown)
 		{
-			while (!(mApplication.getConnectionStatus()));
-
-			//Listen for message
-			byte[] buffer = new byte[1024];  // buffer store for the stream
-			RobotMessage msg = new RobotMessage();
-
+			//while (!(mApplication.getConnectionStatus()));
 			// Keep listening to the InputStream until an exception occurs
+
+			byte[] buffer = new byte[2048];  // buffer store for the stream
+			String bufferString = "";
+
 			while (mApplication.getConnectionStatus()) 
 			{
+				Log.d("ConnectedThread", "Listening for message");
+
+				String messageString = "";
+				
+				// Read from the InputStream
+				try {
+					buffer = new byte[2048];
+					mInStream.read(buffer);
+				} catch (IOException e) {
+					e.printStackTrace();
+					Log.d("ConnectedThread", "Error reading message");
+					continue;
+				}
+
+				bufferString += (new String(buffer).trim());
+				Log.d("ConnectedThread", "Read: " + bufferString);
+
+				if (bufferString.contains("_END"))
+				{
+					messageString = bufferString.substring(0, 
+							bufferString.indexOf("_END"));
+					bufferString = bufferString.substring(
+							bufferString.indexOf("_END")+4);
+
+
+					Log.d("ConnectedThread", "Message: " + messageString);
+					Log.d("ConnectedThread", "Leftover buffer: " + bufferString);
+
+					String[] messageParts = messageString.split("_DELIM_");
+					Log.d("ConnectedThread", "Message type: " + messageParts[0]);
+
+					if(messageParts[0].equals("robot_configuration"))
+					{
+						Log.d("ConnectedThread", "Configuring Robot");
+						Robot newRobot = new Robot();
+						newRobot.setName(messageParts[1]);
+						newRobot.setInfo(messageParts[2]);
+						newRobot.setVocabulary(new Vocabulary(messageParts[3]));
+						
+						Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.ADD_VOCAB_MESSAGE, newRobot.getName());
+						voiceHandler.sendMessageAtFrontOfQueue(msg);
+						
+						mApplication.addRobot(newRobot);
+						
+						Log.d("ConnectedThread", "Writing confirmation");
+						write("configuration complete\n".getBytes());
+					}
+					else if(messageParts[0].equals("text_message"))
+					{
+						Log.d("ConnectedThread", "Reading text message");
+						RobotMessage msg = new RobotMessage();
+						msg.setType("Text");
+						msg.setSender(messageParts[1]);
+						msg.setText(messageParts[2]);
+						msg.setPriority(Integer.parseInt(messageParts[3]));
+						Log.d("ConnectedThread", "Adding text message to messages");
+						mApplication.addMessage(msg);
+					}
+				}
+
+			}
+			/*
+				//Listen for message
+
 				try {
 					// Read from the InputStream
 					mInStream.read(buffer);
 
-					String messageType = new String(buffer);
+					String messageType = new String(buffer).trim();
+
+					Log.d("ConnectedThread", "Message Received " + messageType);
+
+					if(!(messageType.equals("robot_configuration") | messageType.equals("text_message") | messageType.equals("image_message")))
+					{
+						Log.d("ConnectedThread", "Invalid message type");
+						continue;
+					}
 
 					//Parse sender
+					Log.d("ConnectedThread", "Parsing message sender");
+					buffer = new byte[1024];  // buffer store for the stream
 					String sender = "";
 					try 
 					{
 						mInStream.read(buffer);
-						sender = new String(buffer);
+						sender = new String(buffer).trim();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -210,59 +308,68 @@ public class ConnectedThread extends Thread
 						parseTextMessage(sender);
 					}
 
-					msg.fromByteArray(buffer);
+					/*msg.fromByteArray(buffer);
 
 					String type = msg.getType();
-					if (type.equals("text"))
+					if (type.equals("Text"))
 					{
 						sendMainMessage(msg);
 					}
 
-				} catch (IOException e) {
+				} catch (IOException e)
+				{
+					e.printStackTrace();
 					break;
 				}
-			}
+			 */
+
 		}
 	}
 
 	private void parseRobotConfiguration(String sender)
 	{
+		Log.d("ConnectedThread", "Parsing configuration message");
+
 		byte[] buffer = new byte[8192];  // buffer store for the stream, 8 KB
-		String confirmation = "confirm receipt";
-		String failure = "failed to read";
+		String confirmation = "configuration complete\n";
+		String failure = "failed to read ";
 
 		Robot newRobot = new Robot();
 		newRobot.setName(sender);
 
 		//Parse robot information
+		Log.d("ConnectedThread", "Parsing configuration info");
 		String info = "";
 		try 
 		{
 			mInStream.read(buffer);
-			info = new String(buffer);
+			info = new String(buffer).trim();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			write(failure.getBytes());
+			write(failure.concat("info").getBytes());
 			return;
 		}
 		newRobot.setInfo(info);
+		Log.d("ConnectedThread", "Configuration info is: " + info);
 
 		//Parse robot vocabulary
+		Log.d("ConnectedThread", "Parsing configuration vocabulary");
 		String vocabString = "";
 		try {
 			mInStream.read(buffer);
-			vocabString = new String(buffer);
+			vocabString = new String(buffer).trim();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			write(failure.getBytes());
+			write(failure.concat("vocabulary").getBytes());
 			return;
 		}
+		Log.d("ConnectedThread", "Configuration vocabulary is: " + vocabString);
 		newRobot.setVocabulary(new Vocabulary(vocabString));
 
 		mApplication.addRobot(newRobot);
-
+		Log.d("ConnectedThread", "Writing confirmation");
 		write(confirmation.getBytes());
 	}
 
@@ -363,14 +470,25 @@ public class ConnectedThread extends Thread
 		write(confirmation.getBytes());
 	}
 
-	/* Call this from the main activity to send data to the remote device */
 	public void write(byte[] bytes) {
 		String sentString = new String(bytes);
 		String confirmString = "Copy: " + sentString + "\n";
 
 		try {
 			mOutStream.write(bytes);
-		} catch (IOException e) { }
+		} catch (IOException e) { 
+			//Something went wrong, end connection
+
+			e.printStackTrace();
+			try {
+				mBtSocket.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+
+			mApplication.setConnectionStatus(false);
+		}
 
 		// Listen for confirmation of receipt.
 		Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
@@ -408,7 +526,7 @@ public class ConnectedThread extends Thread
 		}
 
 		mainMsg.obj = msg;
-		mHandler.sendMessage(mainMsg);
+		mHandler.sendMessageAtFrontOfQueue(mainMsg);
 	}
 
 	public void disconnect() 
@@ -419,6 +537,17 @@ public class ConnectedThread extends Thread
 			mBtSocket.close();
 			mApplication.setConnectionStatus(false);
 		} 
-		catch (IOException e) { }
+		catch (IOException e) { 
+			e.printStackTrace();
+		}
+	}
+
+	public void shutdown()
+	{
+		if (mApplication.getConnectionStatus())
+		{
+			disconnect();
+		}
+		isShutdown = true;
 	}
 }

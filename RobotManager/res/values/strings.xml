@@ -12,4 +12,6 @@
     <string name="init_command">Command: None</string>
     <string name="message_placeholder">Alert from Robot</string>
     <string name="message_txt_placeholder">Message text goes here</string>
+    <string name="focus_all">Focus: All</string>
+    
 </resources>
