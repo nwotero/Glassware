@@ -72,9 +72,10 @@ public class MainActivity extends Activity {
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
 			case TEXT_MESSAGE:
-				Intent messageIntent = new Intent(MainActivity.this, MessageActivity.class);
-				messageIntent.putExtra("Message", (Parcelable)msg.obj);
-				startActivity(messageIntent);
+				//Intent messageIntent = new Intent(MainActivity.this, MessageActivity.class);
+				//messageIntent.putExtra("Message", (Parcelable)msg.obj);
+				//startActivity(messageIntent);
+				launchMessageListActivity();
 				break;
 			case CONNECTION_MESSAGE:
 				String text = (String)msg.obj;
@@ -125,7 +126,7 @@ public class MainActivity extends Activity {
 	{
 		super.onCreate(savedInstanceState);
 
-		android.os.Debug.waitForDebugger();
+		//android.os.Debug.waitForDebugger();
 		
 		mGestureDetector = createGestureDetector(this);
 
@@ -139,6 +140,11 @@ public class MainActivity extends Activity {
 		ConnectedThread connectedThread = new ConnectedThread(mHandler, mApplication);
 		VoiceRecognitionThread voiceThread = new VoiceRecognitionThread(mApplication, this);
 
+		connectedThread.start();
+		voiceThread.start();
+		
+		while(!connectedThread.isReady() ||  !voiceThread.isReady());
+		
 		mApplication.setMainThreadHandler(mHandler);
 		mApplication.setConnectedThreadHandler(connectedThread.getHandler());
 		mApplication.setVoiceThreadHandler(voiceThread.getHandler());
@@ -149,9 +155,6 @@ public class MainActivity extends Activity {
 		Thread.currentThread().setName("Main Activity Thread");
 		connectedThread.setName("Connected Thread");
 		voiceThread.setName("Voice Recognition Thread");
-		
-		connectedThread.start();
-		voiceThread.start();
 	}
 
 	@Override
@@ -190,8 +193,12 @@ public class MainActivity extends Activity {
 		case R.id.viewRobots:
 			launchRobotListActivity();
 			return true;
+		case R.id.viewMessages:
+			launchMessageListActivity();
+			return true;
 		case R.id.close:
 			mApplication.onShutdown();
+			return true;
 		default:
 			return super.onOptionsItemSelected(item);
 		}

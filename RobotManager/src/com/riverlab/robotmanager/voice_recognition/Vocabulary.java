@@ -311,7 +311,7 @@ public class Vocabulary
 		public Modifier(Element modifierNode)
 		{
 			this.uses = modifierNode.getAttribute("use");
-			this.isRequired = modifierNode.getAttribute("required") != "false";
+			this.isRequired = !(modifierNode.getAttribute("required").equals("false"));
 
 			Log.d("Vocabulary", "Constructing modifier using " + this.uses);
 

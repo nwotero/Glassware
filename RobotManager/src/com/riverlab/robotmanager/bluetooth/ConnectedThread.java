@@ -6,9 +6,13 @@ import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 import com.riverlab.robotmanager.MainActivity;
 import com.riverlab.robotmanager.RobotManagerApplication;
@@ -25,6 +29,7 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
@@ -36,6 +41,7 @@ public class ConnectedThread extends HandlerThread
 	private OutputStream mOutStream;
 	private RobotManagerApplication mApplication;
 	private boolean isShutdown = false;
+	private Object readWriteLock = new Object();
 
 	public static final int CONNECT_MESSAGE = 0;
 	public static final int DISCONNECT_MESSAGE = 1;
@@ -43,46 +49,69 @@ public class ConnectedThread extends HandlerThread
 	public static final int SHUTDOWN_MESSAGE = 3;
 
 
+	private Handler mHandler = null;
 	private Handler mainHandler;
 	private Handler voiceHandler;
-	private final Handler mHandler = new Handler(){
-		public void handleMessage(Message msg) 
-		{
-			switch (msg.what)
-			{
-			case CONNECT_MESSAGE:
-				String deviceName = (String)msg.obj;
-				connect(deviceName);
-				break;
-			case DISCONNECT_MESSAGE:
-				disconnect();
-				break;
-			case WRITE_MESSAGE:
-				String msgText = (String)msg.obj;
-				write(msgText.getBytes());
-				break;
-			case SHUTDOWN_MESSAGE:
-				shutdown();
-				break;
-			}
-		}
-	};
-
+	
+	Thread socketThread;
 
 	public ConnectedThread(Handler mainHandler, RobotManagerApplication app) 
 	{
 		super("Bluetooth Connection Thread");
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		this.mainHandler = mainHandler;
 		mApplication = app;
 	}
 	
+	@Override
+	public void start()
+	{
+		super.start();
+		
+		mHandler = new Handler(getLooper()){
+			public void handleMessage(Message msg) 
+			{
+				switch (msg.what)
+				{
+				case CONNECT_MESSAGE:
+					String deviceName = (String)msg.obj;
+					connect(deviceName);
+					break;
+				case DISCONNECT_MESSAGE:
+					disconnect();
+					break;
+				case WRITE_MESSAGE:
+					String msgText = (String)msg.obj;
+					write(msgText.getBytes());
+					break;
+				case SHUTDOWN_MESSAGE:
+					shutdown();
+					break;
+				}
+			}
+		};
+		
+		socketThread = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				pollSocket();
+			}
+		};
+		socketThread.start();
+	}
+
+	public synchronized boolean isReady()
+	{
+		return mHandler != null;
+	}
+
 	public void setHandlers(Handler mainHandler, Handler voiceHandler) 
 	{
 		this.mainHandler = mainHandler;
 		this.voiceHandler = voiceHandler;
 	}
-	
+
 	public Handler getHandler()
 	{
 		return mHandler;
@@ -194,8 +223,24 @@ public class ConnectedThread extends HandlerThread
 		return false;
 	}
 
-	public void run() 
+	public synchronized byte[] read()
 	{
+		byte[] buffer = new byte[2048];
+
+		try {
+			buffer = new byte[2048];
+			mInStream.read(buffer);
+			return buffer;
+		} catch (IOException e) {
+			e.printStackTrace();
+			Log.d("ConnectedThread", "Error reading message");
+			return null;
+		}
+	}
+	
+	public void pollSocket() 
+	{
+
 		Log.d("ConnectedThread", "Running thread");
 
 		while (!isShutdown)
@@ -211,18 +256,28 @@ public class ConnectedThread extends HandlerThread
 				Log.d("ConnectedThread", "Listening for message");
 
 				String messageString = "";
-				
-				// Read from the InputStream
-				try {
-					buffer = new byte[2048];
-					mInStream.read(buffer);
-				} catch (IOException e) {
-					e.printStackTrace();
-					Log.d("ConnectedThread", "Error reading message");
-					continue;
+				boolean incoming = false;
+
+				while(!incoming)
+				{
+					synchronized (readWriteLock) 
+					{
+						try {
+							if (mInStream.available() > 0)
+							{
+								buffer = read();
+								incoming = true;
+							}
+						} catch (IOException e) {
+							e.printStackTrace();
+							incoming = false;
+						}
+					}
 				}
 
 				bufferString += (new String(buffer).trim());
+
+				Log.d("ConnectedThread", "Buffer: " + bufferString);
 
 				if (bufferString.contains("_END"))
 				{
@@ -244,12 +299,12 @@ public class ConnectedThread extends HandlerThread
 						newRobot.setName(messageParts[1]);
 						newRobot.setInfo(messageParts[2]);
 						newRobot.setVocabulary(new Vocabulary(messageParts[3]));
-						
+
 						Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.ADD_VOCAB_MESSAGE, newRobot.getName());
 						voiceHandler.sendMessageAtFrontOfQueue(msg);
-						
+
 						mApplication.addRobot(newRobot);
-						
+
 						Log.d("ConnectedThread", "Writing confirmation");
 						write("configuration complete\n".getBytes());
 					}
@@ -261,6 +316,11 @@ public class ConnectedThread extends HandlerThread
 						msg.setSender(messageParts[1]);
 						msg.setText(messageParts[2]);
 						msg.setPriority(Integer.parseInt(messageParts[3]));
+
+						Calendar cal = Calendar.getInstance();
+						SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+						msg.setTimestamp(sdf.format(cal.getTime()));
+
 						Log.d("ConnectedThread", "Adding text message to messages");
 						mApplication.addMessage(msg);
 					}
@@ -468,11 +528,15 @@ public class ConnectedThread extends HandlerThread
 		write(confirmation.getBytes());
 	}
 
-	public void write(byte[] bytes) {
+	public synchronized void write(byte[] bytes) {
 		String sentString = new String(bytes);
-		String confirmString = "Copy: " + sentString + "\n";
+		String confirmString = "Copy: " + sentString;
 
+		Log.d("RobotManagerBluetooth", "Acquiring read/write lock");
+		//synchronized (readWriteLock) 
+		//{
 		try {
+			Log.d("RobotManagerBluetooth", "Writing");
 			mOutStream.write(bytes);
 		} catch (IOException e) { 
 			//Something went wrong, end connection
@@ -487,31 +551,25 @@ public class ConnectedThread extends HandlerThread
 
 			mApplication.setConnectionStatus(false);
 		}
+		/*
+			// Listen for confirmation of receipt.
+			Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
 
-		// Listen for confirmation of receipt.
-		Log.d("RobotManagerBluetooth", "Listening for confirmation message from server");
+			byte[] receivedBytes = read();
 
-		byte[] receivedBytes = new byte[confirmString.getBytes().length];
-		try
-		{
-			mInStream.read(receivedBytes);
-		} catch (IOException e){
-			e.printStackTrace();
-			return;
-		}
+			String receivedString = new String(receivedBytes).trim();
+			if (receivedString.equals(confirmString))
+			{
+				Log.d("RobotManagerBluetooth", "Receipt confirmed");
 
-		String receivedString = new String(receivedBytes);
-		if (receivedString.equals(confirmString))
-		{
-			Log.d("RobotManagerBluetooth", "Receipt confirmed");
-
-		}
-		else
-		{
-			Log.d("RobotManagerBluetooth", "Confirmation of receipt not received");
-			return;
-		}
-
+			}
+			else
+			{
+				Log.d("RobotManagerBluetooth", "Confirmation of receipt not received, instead: " + receivedString);
+				return;
+			}
+		 */
+		//	}
 	}
 
 	private void sendMainMessage(RobotMessage msg)

@@ -11,6 +11,7 @@ public class RobotMessage implements Parcelable
 	private String text;
 	private Bitmap img;	
 	private int priority;		//Zero means unimportant, One means important
+	private String timestamp;
 	
 	public RobotMessage()
 	{}
@@ -81,6 +82,11 @@ public class RobotMessage implements Parcelable
 	public int getPriority() {
 		return priority;
 	}
+	
+	public String getTimestamp() 
+	{
+		return timestamp;
+	}
 
 
 	/**
@@ -109,6 +115,11 @@ public class RobotMessage implements Parcelable
 	 */
 	public void setPriority(int priority) {
 		this.priority = priority;
+	}
+	
+	public void setTimestamp(String timestamp)
+	{
+		this.timestamp = timestamp;
 	}
 
 	@Override

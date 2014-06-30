@@ -38,6 +38,10 @@
         <activity
             android:name="com.riverlab.robotmanager.robot.ViewRobotListActivity"
             android:label="@string/view_robots_label"/>
+        
+        <activity
+            android:name="com.riverlab.robotmanager.messages.MessageListActivity"
+            android:label="@string/view_messages_label"/>
     </application>
 
 </manifest>

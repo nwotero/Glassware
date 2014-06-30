@@ -45,9 +45,9 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 	}
 	
 	 class ViewHolder {
-	        ImageView image;
 	        TextView headline;
 	        TextView text;
+	        TextView timestamp;
 	    }
 
 	@Override
@@ -56,11 +56,10 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         if (convertView == null) {
             convertView = View.inflate(context, R.layout.message_card, null);
             holder = new ViewHolder();
-
-            holder.image = (ImageView) convertView.findViewById(R.id.messageImageView);
             holder.headline = (TextView) convertView.findViewById(R.id.headline);
             holder.text = (TextView) convertView.findViewById(R.id.messageText);
-
+            holder.timestamp = (TextView) convertView.findViewById(R.id.timestampText);
+            
             convertView.setTag(holder);
         }
         else {
@@ -70,6 +69,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         RobotMessage msg = getItem(position);
         holder.headline.setText(msg.getType() + " message from: " + msg.getSender());
         holder.text.setText(msg.getText());
+        holder.timestamp.setText("Received: " + msg.getTimestamp());
 
         return convertView;
 	}

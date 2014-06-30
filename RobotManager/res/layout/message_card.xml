@@ -4,38 +4,38 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ImageView
-        android:layout_width="240px"
-        android:layout_height="360px"
-        android:scaleType="centerInside"
-        android:id="@+id/messageImageView"
-        android:background="@color/dark_grey"
-        android:src="@drawable/exclamation_point"/>
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/headline"
         android:text="@string/message_placeholder"
         android:textSize="24sp"
-        android:layout_toRightOf="@+id/imageView"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="40px"
         android:layout_marginTop="40px"
-        android:layout_marginLeft="20px"/>
+        android:layout_marginLeft="40dip"
+		android:layout_marginRight="40dip" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/messageText"
         android:textSize="24sp"
-        android:layout_toRightOf="@+id/imageView"
-        android:layout_below="@+id/headline"
-        android:layout_alignParentRight="true"
+        android:layout_below="@id/headline"
         android:layout_marginTop="20px"
-        android:layout_marginRight="40px"
-        android:layout_marginLeft="20px"
-        android:textColor="@color/green"
+        android:layout_marginLeft="40dip"
+		android:layout_marginRight="40dip"
+        android:textColor="@color/blue"
         android:text="@string/message_txt_placeholder"/>
+
+    <TextView
+        android:id="@+id/timestampText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:gravity="bottom"
+        android:layout_marginLeft="40dip"
+		android:layout_marginRight="40dip"
+        android:text="@string/timestamp_txt_placeholder"
+        android:textColor="@color/green"
+        android:textSize="22sp" />
 		
 </RelativeLayout>

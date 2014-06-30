@@ -24,18 +24,8 @@ public class VoiceHelperThread extends HandlerThread
 
 	public static final int RECEIVE_PHRASE_MESSAGE = 0;
 
-	private final Handler mHandler = new Handler(){
-		@Override
-		public void handleMessage(Message msg) {
-			switch (msg.what) {
-			case RECEIVE_PHRASE_MESSAGE:
-				String phraseText = (String)msg.obj;
-				receivePhrase(phraseText);
-				break;
-			}
-
-		}
-	};
+	private Handler mHandler;
+	private Thread worker;
 
 	public VoiceHelperThread(RobotManagerApplication app, String rootPhrase, String targetRobotName, Handler voiceRecognitionThreadHandler)
 	{
@@ -46,15 +36,43 @@ public class VoiceHelperThread extends HandlerThread
 		this.voiceRecognitionThreadHandler = voiceRecognitionThreadHandler;
 	}
 	
+	@Override
+	public void start()
+	{
+		super.start();
+		
+		mHandler = new Handler(){
+			@Override
+			public void handleMessage(Message msg) {
+				switch (msg.what) {
+				case RECEIVE_PHRASE_MESSAGE:
+					String phraseText = (String)msg.obj;
+					receivePhrase(phraseText);
+					break;
+				}
+
+			}
+		};
+		
+		worker = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				createExpression();
+			}
+		};
+		worker.start();
+	}
+	
 	public Handler getHandler()
 	{
 		return mHandler;}
 
-	public void run()
+	public void createExpression()
 	{
 		ArrayList<String> previous = new ArrayList<String>();
 		ArrayList<Robot> allRobots = new ArrayList<Robot>(mApplication.getRobots());
-		ArrayList<String> nextPhrases = new ArrayList<String>();
 		boolean isRequired = false;
 
 		Robot targetRobot = mApplication.getRobot(targetRobotName);
@@ -65,11 +83,13 @@ public class VoiceHelperThread extends HandlerThread
 		outerloop:
 			while (!reset)
 			{
+				ArrayList<String> nextPhrases = new ArrayList<String>();
+
 				if (newPhraseReceived)
 				{
 					previous.add(newPhrase);
 					newPhraseReceived = false;
-					sendUIUpdate(previous);
+					sendUIUpdate(previous, true);
 
 					//Obtain next set of commands
 					if (targetRobotName.equals("All"))
@@ -138,12 +158,7 @@ public class VoiceHelperThread extends HandlerThread
 
 		//The full command has been said, compile phrases into an expression and
 		//send with a reset message
-		for (String phrase : previous)
-		{
-			expression += (" " + phrase);
-		}
-
-		sendResetMessage(expression);
+		sendResetMessage(previous);
 	}
 
 	public void receivePhrase(String phrase)
@@ -159,29 +174,42 @@ public class VoiceHelperThread extends HandlerThread
 		voiceRecognitionThreadHandler.sendMessageAtFrontOfQueue(msg);
 	}
 
-	private void sendResetMessage(String expression)
+	private void sendResetMessage(ArrayList<String> previousPhrases)
 	{
-		Handler mainHandler = mApplication.getMainActivityHandler();
-
-		Message mainMsg = mainHandler.obtainMessage(MainActivity.COMMAND_MESSAGE, expression);
-		Message voiceMsg = voiceRecognitionThreadHandler.obtainMessage(VoiceRecognitionThread.RESET_MESSAGE, expression);
-
-		mainHandler.sendMessageAtFrontOfQueue(mainMsg);
+		String sent = sendUIUpdate(previousPhrases, false);
+		String fullString = targetRobotName + " " + sent;
+		
+		Message voiceMsg = voiceRecognitionThreadHandler.obtainMessage(VoiceRecognitionThread.RESET_MESSAGE, fullString);
 		voiceRecognitionThreadHandler.sendMessageAtFrontOfQueue(voiceMsg);
 	}
 
-	private void sendUIUpdate(ArrayList<String> previousPhrases)
+	private String sendUIUpdate(ArrayList<String> previousPhrases, boolean more)
 	{
 		String commandViewText = "";
+		
 		for (String phrase : previousPhrases)
 		{
 			commandViewText += (phrase + " ");
 		}
-		commandViewText += ("_");
-
+		if (more) //Add continuation character
+		{
+			commandViewText += ("_");
+		}
+		else //Remove extra space
+		{
+			commandViewText = commandViewText.substring(0, commandViewText.length() - 1);
+		}
+		
 		Handler mainHandler = mApplication.getMainActivityHandler();
 		Message mainMsg = mainHandler.obtainMessage(MainActivity.COMMAND_MESSAGE, commandViewText);
-		mainHandler.sendMessageAtFrontOfQueue(mainMsg);		
+		mainHandler.sendMessage(mainMsg);		
+		
+		return commandViewText;
+	}
+
+	public synchronized boolean isReady()
+	{
+		return mHandler != null;
 	}
 
 }

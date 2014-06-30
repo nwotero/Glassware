@@ -5,6 +5,10 @@
         android:id="@+id/viewDevices"
         android:title="@string/view_devices"/>
     
+    <item
+        android:id="@+id/viewMessages"
+        android:title="@string/view_messages"/>
+            
     <item 
         android:id="@+id/viewRobots"
         android:title="@string/view_robots"/>

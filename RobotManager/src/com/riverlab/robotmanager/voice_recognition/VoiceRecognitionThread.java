@@ -57,37 +57,8 @@ public class VoiceRecognitionThread extends HandlerThread
 	//Handlers
 	private Handler mainHandler;
 	private Handler connectedHandler;
-	private final Handler mHandler = new Handler(){
-		@Override
-		public void handleMessage(Message msg) {
-			switch (msg.what) {
-			case ADD_VOCAB_MESSAGE:
-				String addition = (String)msg.obj;
-				addToVocab(addition);
-				break;
-			case REMOVE_VOCAB_MESSAGE:
-				String deletion = (String)msg.obj;
-				removeFromVocab(deletion);
-				break;
-			case CHANGE_VOCAB_MESSAGE:
-				ArrayList<String> newVocab = (ArrayList<String>)msg.obj;
-				changeVocab(newVocab);
-				break;
-			case RESET_MESSAGE:
-				String resetMessage = (String)msg.obj;
-				reset(resetMessage);
-				break;
-			case LISTENING_MESSAGE:
-				boolean isListening = (Boolean) msg.obj;
-				VoiceRecognitionThread.this.isListening = isListening;
-			case SHUTDOWN_MESSAGE:
-				shutdown();
-				break;
-			}
-
-		}
-	};
-
+	private Handler mHandler = null;
+	
 	public VoiceRecognitionThread(RobotManagerApplication app, Context context)
 	{
 		super("Voice Recognition Thread");
@@ -125,9 +96,51 @@ public class VoiceRecognitionThread extends HandlerThread
 		mVoiceInputHelper = new VoiceInputHelper(mContext, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(mContext));
 
-		mVoiceInputHelper.addVoiceServiceListener();
+		mVoiceInputHelper.addVoiceServiceListener();		
+	}
+	
+	@Override
+	public void start()
+	{
+		super.start();
+		
+		mHandler = new Handler(getLooper()){
+			@Override
+			public void handleMessage(Message msg) {
+				switch (msg.what) {
+				case ADD_VOCAB_MESSAGE:
+					String addition = (String)msg.obj;
+					addToVocab(addition);
+					break;
+				case REMOVE_VOCAB_MESSAGE:
+					String deletion = (String)msg.obj;
+					removeFromVocab(deletion);
+					break;
+				case CHANGE_VOCAB_MESSAGE:
+					ArrayList<String> newVocab = (ArrayList<String>)msg.obj;
+					changeVocab(newVocab);
+					break;
+				case RESET_MESSAGE:
+					String resetMessage = (String)msg.obj;
+					reset(resetMessage);
+					break;
+				case LISTENING_MESSAGE:
+					boolean isListening = (Boolean) msg.obj;
+					VoiceRecognitionThread.this.isListening = isListening;
+				case SHUTDOWN_MESSAGE:
+					shutdown();
+					break;
+				}
+
+			}
+		};
 	}
 
+	public synchronized boolean isReady()
+	{
+		return mHandler != null;
+	}
+	
 	public void setHandlers(Handler mainHandler, Handler connectedHandler)
 	{
 		this.mainHandler = mainHandler;
@@ -221,12 +234,6 @@ public class VoiceRecognitionThread extends HandlerThread
 		changeVocab(getDefaultRobotCommands());
 	}
 
-
-	public void run()
-	{
-		while (!isShutdown);
-	}
-
 	private void sendVoiceCommand(String command)
 	{
 		Message msg = connectedHandler.obtainMessage(ConnectedThread.WRITE_MESSAGE, command);
@@ -263,7 +270,7 @@ public class VoiceRecognitionThread extends HandlerThread
 			String recognizedStr = vc.getLiteral();
 			
 			//Eliminate voice recognition bounce
-			if (recognizedStr.equals(lastCommand) && (System.currentTimeMillis() - millisFromLastCommand < 1000))
+			if (recognizedStr.equals(lastCommand))// && (System.currentTimeMillis() - millisFromLastCommand < 1000))
 			{
 				Log.i("VoiceRecognitionThread", "Voice recognition debounced");
 				millisFromLastCommand = System.currentTimeMillis();
@@ -348,7 +355,10 @@ public class VoiceRecognitionThread extends HandlerThread
 
 					else if (recognizedStr.equals("View messages"))
 					{
-
+						Log.i("VoiceRecognitionThread", "Requesting launch of MessageListActivity");
+						Message msgView = mainHandler.obtainMessage();
+						msgView.what = MainActivity.TEXT_MESSAGE;
+						mainHandler.sendMessage(msgView);
 					}
 
 					else if (recognizedStr.equals("View map"))
@@ -371,8 +381,10 @@ public class VoiceRecognitionThread extends HandlerThread
 								mHelper = new VoiceHelperThread(mApplication, recognizedStr, 
 										focus.getName(), mHandler);
 							}
-							mHelperHandler = mHelper.getHandler();
+							
 							mHelper.start();
+							while(!mHelper.isReady());
+							mHelperHandler = mHelper.getHandler();
 
 							usingSystemCommands = false;
 						}
