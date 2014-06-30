@@ -1,6 +1,7 @@
 package com.riverlab.robotmanager.voice_recognition;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -47,17 +48,22 @@ public class VoiceRecognitionThread extends HandlerThread
 	private VoiceHelperThread mHelper = null;
 	private Handler mHelperHandler = null;
 
-	public static final int ADD_VOCAB_MESSAGE = 0;
-	public static final int REMOVE_VOCAB_MESSAGE = 1;
-	public static final int CHANGE_VOCAB_MESSAGE = 2;
-	public static final int RESET_MESSAGE = 3;
-	public static final int LISTENING_MESSAGE = 4;
-	public static final int SHUTDOWN_MESSAGE = 5;
+	public static final int ENABLE_SYSTEM_CMD_MESSAGE = 0;
+	public static final int ADD_VOCAB_MESSAGE = 1;
+	public static final int REMOVE_VOCAB_MESSAGE = 2;
+	public static final int CHANGE_VOCAB_MESSAGE = 3;
+	public static final int CHANGE_VOCAB_ACTION_MESSAGE = 4;
+	public static final int RESET_MESSAGE = 5;
+	public static final int LISTENING_MESSAGE = 6;
+	public static final int CONTEXT_MESSAGE = 7;
+	public static final int SHUTDOWN_MESSAGE = 8;
 
 	//Handlers
 	private Handler mainHandler;
 	private Handler connectedHandler;
 	private Handler mHandler = null;
+	
+	private HashMap<String, Runnable> mActionMap;
 	
 	public VoiceRecognitionThread(RobotManagerApplication app, Context context)
 	{
@@ -108,6 +114,10 @@ public class VoiceRecognitionThread extends HandlerThread
 			@Override
 			public void handleMessage(Message msg) {
 				switch (msg.what) {
+				case ENABLE_SYSTEM_CMD_MESSAGE:
+					Boolean enable = (Boolean)msg.obj;
+					useSystemCommands(enable);
+					break;
 				case ADD_VOCAB_MESSAGE:
 					String addition = (String)msg.obj;
 					addToVocab(addition);
@@ -120,6 +130,10 @@ public class VoiceRecognitionThread extends HandlerThread
 					ArrayList<String> newVocab = (ArrayList<String>)msg.obj;
 					changeVocab(newVocab);
 					break;
+				case CHANGE_VOCAB_ACTION_MESSAGE:
+					HashMap<String, Runnable> actionMap = (HashMap<String, Runnable>)msg.obj;
+					changeVocabWithAction(actionMap);
+					break;
 				case RESET_MESSAGE:
 					String resetMessage = (String)msg.obj;
 					reset(resetMessage);
@@ -127,6 +141,11 @@ public class VoiceRecognitionThread extends HandlerThread
 				case LISTENING_MESSAGE:
 					boolean isListening = (Boolean) msg.obj;
 					VoiceRecognitionThread.this.isListening = isListening;
+					break;
+				case CONTEXT_MESSAGE:
+					Context newContext = (Context)msg.obj;
+					setContext(newContext);
+					break;
 				case SHUTDOWN_MESSAGE:
 					shutdown();
 					break;
@@ -222,6 +241,32 @@ public class VoiceRecognitionThread extends HandlerThread
 		mVoiceInputHelper.addVoiceServiceListener();
 
 		Log.d("VoiceRecognitionThread", "New listening list: " + mVoiceConfigList.toString());
+	}
+	
+	public void changeVocabWithAction(HashMap<String, Runnable> vocabWithAction)
+	{
+		mActionMap = vocabWithAction;
+		
+		ArrayList<String> commands = new ArrayList<String>();
+		
+		for (String command : mActionMap.keySet())
+		{
+			commands.add(command);
+		}
+		
+		useSystemCommands(false);
+		changeVocab(commands);
+	}
+	
+	public void setContext(Context newContext)
+	{
+		mContext = newContext;
+		
+	}
+	
+	public void useSystemCommands(boolean use)
+	{
+		usingSystemCommands = use;
 	}
 
 	public void reset(String expression)
@@ -365,6 +410,12 @@ public class VoiceRecognitionThread extends HandlerThread
 					{
 
 					}
+					
+					else if (mActionMap != null && mActionMap.containsKey(recognizedStr))
+					{
+						mActionMap.get(recognizedStr).run();
+					}
+					
 					//If the recognized string is not a system command, it must be a robot command
 					else if (!recognizedStr.equals("Start listening"))
 					{

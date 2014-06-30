@@ -163,6 +163,27 @@ public class MainActivity extends Activity {
 		imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
 		//mApplication.getVoiceThread().setListeningStatus(true);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		
+		Handler voiceHandler = mApplication.getVoiceThreadHandler();
+		Message msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.CONTEXT_MESSAGE, 
+				this);
+		voiceHandler.sendMessage(msg);
+		
+		msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.ENABLE_SYSTEM_CMD_MESSAGE, 
+				true);
+		voiceHandler.sendMessage(msg);
+		
+		msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.CHANGE_VOCAB_MESSAGE,
+				new ArrayList<String>());
+		voiceHandler.sendMessage(msg);
+		
+		msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.LISTENING_MESSAGE, 
+				true);
+		voiceHandler.sendMessage(msg);
 	}
 
 	@Override
