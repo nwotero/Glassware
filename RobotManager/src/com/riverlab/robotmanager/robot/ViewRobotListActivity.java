@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -25,6 +27,7 @@ import com.google.android.glass.touchpad.Gesture;
 import com.google.android.glass.touchpad.GestureDetector;
 import com.google.android.glass.widget.CardScrollView;
 import com.riverlab.robotmanager.RobotManagerApplication;
+import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,6 +36,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -44,6 +48,44 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 	BluetoothDevice mSelectedDevice;
 	RobotCardScrollAdapter adapter;
 	GestureDetector mGestureDetector;
+	RobotManagerApplication mApplication;
+	
+	Runnable close = new Runnable() {
+		@Override
+		public void run() 
+		{
+			finish();
+		}
+	};
+
+	Runnable previous = new Runnable() {
+		@Override
+		public void run() 
+		{
+			int current = mCardScrollView.getSelectedItemPosition();
+			int next = current - 1;
+
+			if(next >= 0)
+			{
+				mCardScrollView.setSelection(next);
+			}
+		}
+	};
+
+	Runnable next = new Runnable() {
+		@Override
+		public void run() 
+		{
+			int last = mCardScrollView.getChildCount();
+			int current = mCardScrollView.getSelectedItemPosition();
+			int next = current + 1;
+
+			if(next < last)
+			{
+				mCardScrollView.setSelection(next);
+			}
+		}
+	};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +105,29 @@ public class ViewRobotListActivity extends Activity implements AdapterView.OnIte
 		Collection<Robot> mRobots = ((RobotManagerApplication)this.getApplication()).getRobots();
 		adapter = new RobotCardScrollAdapter(this, mRobots);
 		mCardScrollView.setAdapter(adapter);
+		mApplication = (RobotManagerApplication)this.getApplication();
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		
+		HashMap<String, Runnable> commands = new HashMap<String, Runnable>();
+		commands.put("Close", close);
+		commands.put("Next", next);
+		commands.put("Previous", previous);
+		
+		Handler voiceHandler = mApplication.getVoiceThreadHandler();
+		Message msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.CHANGE_VOCAB_ACTION_MESSAGE,
+				commands);
+		voiceHandler.sendMessage(msg);
+		
+		msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.CONTEXT_MESSAGE, 
+				this);
+		voiceHandler.sendMessage(msg);
+		
+		msg = voiceHandler.obtainMessage(
+				VoiceRecognitionThread.LISTENING_MESSAGE, 
+				true);
+		voiceHandler.sendMessage(msg);
 	}
 
 	@Override

@@ -177,7 +177,7 @@ public class VoiceHelperThread extends HandlerThread
 	private void sendResetMessage(ArrayList<String> previousPhrases)
 	{
 		String sent = sendUIUpdate(previousPhrases, false);
-		String fullString = targetRobotName + " " + sent;
+		String fullString = targetRobotName + ": " + sent;
 		
 		Message voiceMsg = voiceRecognitionThreadHandler.obtainMessage(VoiceRecognitionThread.RESET_MESSAGE, fullString);
 		voiceRecognitionThreadHandler.sendMessageAtFrontOfQueue(voiceMsg);

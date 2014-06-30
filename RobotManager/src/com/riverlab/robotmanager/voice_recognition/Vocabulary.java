@@ -296,6 +296,7 @@ public class Vocabulary
 				if (usedMod == null)
 				{
 					Log.d("CommandInterpreter", "Error finding modifier, check for voice recognition bounce");
+					return new VocabMessage(new ArrayList<String>(), false);
 				}
 				return usedMod.getNextSubVocabs(previous);
 			}

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 
+import com.google.android.glass.media.Sounds;
 import com.google.glass.logging.Log;
 import com.riverlab.robotmanager.bluetooth.ConnectedThread;
 import com.riverlab.robotmanager.messages.MessageListActivity;
@@ -13,6 +14,8 @@ import com.riverlab.robotmanager.robot.Robot;
 import com.riverlab.robotmanager.voice_recognition.VoiceRecognitionThread;
 
 import android.app.Application;
+import android.content.Context;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Message;
 
@@ -134,6 +137,9 @@ public class RobotManagerApplication extends Application
 		{
 			msgListActivity.onMessageAddition();
 		}
+		
+		AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audio.playSoundEffect(Sounds.SUCCESS);
 	}
 
 	public ArrayList<RobotMessage> getMessages()
