@@ -204,7 +204,7 @@ public class VoiceRecognitionThread extends HandlerThread
 
 		Log.d("VoiceThread", "Vocab: " + mVoiceConfigList.toString());
 
-
+		mVoiceInputHelper.removeVoiceServiceListener();
 		mVoiceConfig = new VoiceConfig("MyVoiceConfig", mVoiceConfigList.toArray(new String[mVoiceConfigList.size()]));
 		mVoiceInputHelper = new VoiceInputHelper(mContext, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(mContext));
@@ -216,6 +216,7 @@ public class VoiceRecognitionThread extends HandlerThread
 	{
 		mVoiceConfigList.remove(vcToRemove);
 
+		mVoiceInputHelper.removeVoiceServiceListener();
 		mVoiceConfig = new VoiceConfig("MyVoiceConfig", mVoiceConfigList.toArray(new String[mVoiceConfigList.size()]));
 		mVoiceInputHelper = new VoiceInputHelper(mContext, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(mContext));
@@ -234,6 +235,7 @@ public class VoiceRecognitionThread extends HandlerThread
 			mVoiceConfigList.addAll(mApplication.getRobotNames());
 		}
 
+		mVoiceInputHelper.removeVoiceServiceListener();
 		mVoiceConfig = new VoiceConfig("MyVoiceConfig", mVoiceConfigList.toArray(new String[mVoiceConfigList.size()]));
 		mVoiceInputHelper = new VoiceInputHelper(mContext, new MyVoiceListener(mVoiceConfig),
 				VoiceInputHelper.newUserActivityObserver(mContext));
@@ -288,6 +290,8 @@ public class VoiceRecognitionThread extends HandlerThread
 	public void shutdown()
 	{
 		isShutdown = true;
+		mVoiceInputHelper.removeVoiceServiceListener();
+		this.interrupt();
 	}
 
 

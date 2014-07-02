@@ -47,6 +47,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 	 class ViewHolder {
 	        TextView headline;
 	        TextView text;
+	        ImageView img;
 	        TextView timestamp;
 	    }
 
@@ -58,6 +59,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
             holder = new ViewHolder();
             holder.headline = (TextView) convertView.findViewById(R.id.headline);
             holder.text = (TextView) convertView.findViewById(R.id.messageText);
+            holder.img = (ImageView) convertView.findViewById(R.id.testImageView);
             holder.timestamp = (TextView) convertView.findViewById(R.id.timestampText);
             
             convertView.setTag(holder);
@@ -69,6 +71,8 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         RobotMessage msg = getItem(position);
         holder.headline.setText(msg.getType() + " message from: " + msg.getSender());
         holder.text.setText(msg.getText());
+        if (msg.getType().equals("Image"))
+        	holder.img.setImageBitmap(msg.getImage());
         holder.timestamp.setText("Received: " + msg.getTimestamp());
 
         return convertView;

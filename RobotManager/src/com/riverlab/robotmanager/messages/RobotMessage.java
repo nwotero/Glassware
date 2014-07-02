@@ -1,15 +1,17 @@
 package com.riverlab.robotmanager.messages;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Base64;
 
 public class RobotMessage implements Parcelable
 {
 	private String sender;
 	private String type;		//Text, Image, Video
 	private String text;
-	private Bitmap img;	
+	private Bitmap image;	
 	private int priority;		//Zero means unimportant, One means important
 	private String timestamp;
 	
@@ -27,14 +29,14 @@ public class RobotMessage implements Parcelable
 	{
 		this.sender = sender;
 		this.type = type;
-		this.img = img;
+		this.image = image;
 	}
 	
     private RobotMessage(Parcel in) {
         sender = in.readString();
         type = in.readString();
         text = in.readString();
-        img = (Bitmap)in.readParcelable(null);
+        image = (Bitmap)in.readParcelable(null);
     }
 	
 	public void fromByteArray(byte[] data)
@@ -76,6 +78,11 @@ public class RobotMessage implements Parcelable
 		return text;
 	}
 	
+	public Bitmap getImage()
+	{
+		return image;
+	}
+	
 	/**
 	 * @return the priority
 	 */
@@ -108,6 +115,11 @@ public class RobotMessage implements Parcelable
 	 */
 	public void setText(String text) {
 		this.text = text;
+	}
+	//
+	public void setImage(String encodedImage) {
+		byte[] decodedByte = Base64.decode(encodedImage, 0);
+	    this.image = BitmapFactory.decodeByteArray(decodedByte, 0, decodedByte.length);
 	}
 	
 	/**

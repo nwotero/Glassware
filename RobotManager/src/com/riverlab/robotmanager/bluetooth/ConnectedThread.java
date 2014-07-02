@@ -241,20 +241,18 @@ public class ConnectedThread extends HandlerThread
 	public void pollSocket() 
 	{
 
-		Log.d("ConnectedThread", "Running thread");
+		Log.d("ConnectedThread", "Polling socket");
 
 		while (!isShutdown)
 		{
-			//while (!(mApplication.getConnectionStatus()));
-			// Keep listening to the InputStream until an exception occurs
-
-			byte[] buffer = new byte[2048];  // buffer store for the stream
+			// Keep listening to the InputStream until an exception occurs	
 			String bufferString = "";
 
 			while (mApplication.getConnectionStatus()) 
 			{
 				Log.d("ConnectedThread", "Listening for message");
 
+				byte[] buffer = new byte[2048];  // buffer store for the stream
 				String messageString = "";
 				boolean incoming = false;
 
@@ -269,14 +267,17 @@ public class ConnectedThread extends HandlerThread
 								incoming = true;
 							}
 						} catch (IOException e) {
-							e.printStackTrace();
+							//e.printStackTrace();
 							incoming = false;
 						}
 					}
 				}
-
-				bufferString += (new String(buffer).trim());
-
+				
+				String stringRep = new String(buffer).trim();
+				stringRep = stringRep.replace("_SPACE_", " ");
+				
+				bufferString += stringRep;
+				
 				Log.d("ConnectedThread", "Buffer: " + bufferString);
 
 				if (bufferString.contains("_END"))
@@ -316,6 +317,23 @@ public class ConnectedThread extends HandlerThread
 						msg.setSender(messageParts[1]);
 						msg.setText(messageParts[2]);
 						msg.setPriority(Integer.parseInt(messageParts[3]));
+
+						Calendar cal = Calendar.getInstance();
+						SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+						msg.setTimestamp(sdf.format(cal.getTime()));
+
+						Log.d("ConnectedThread", "Adding text message to messages");
+						mApplication.addMessage(msg);
+					}
+					else if(messageParts[0].equals("image_message"))
+					{
+						Log.d("ConnectedThread", "Reading image message");
+						RobotMessage msg = new RobotMessage();
+						msg.setType("Image");
+						msg.setSender(messageParts[1]);
+						msg.setText(messageParts[2]);
+						msg.setImage(messageParts[3]);
+						msg.setPriority(Integer.parseInt(messageParts[4]));
 
 						Calendar cal = Calendar.getInstance();
 						SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
