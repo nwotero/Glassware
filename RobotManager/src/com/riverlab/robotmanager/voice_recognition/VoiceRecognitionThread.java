@@ -62,9 +62,9 @@ public class VoiceRecognitionThread extends HandlerThread
 	private Handler mainHandler;
 	private Handler connectedHandler;
 	private Handler mHandler = null;
-	
+
 	private HashMap<String, Runnable> mActionMap;
-	
+
 	public VoiceRecognitionThread(RobotManagerApplication app, Context context)
 	{
 		super("Voice Recognition Thread");
@@ -104,12 +104,12 @@ public class VoiceRecognitionThread extends HandlerThread
 
 		mVoiceInputHelper.addVoiceServiceListener();		
 	}
-	
+
 	@Override
 	public void start()
 	{
 		super.start();
-		
+
 		mHandler = new Handler(getLooper()){
 			@Override
 			public void handleMessage(Message msg) {
@@ -159,7 +159,7 @@ public class VoiceRecognitionThread extends HandlerThread
 	{
 		return mHandler != null;
 	}
-	
+
 	public void setHandlers(Handler mainHandler, Handler connectedHandler)
 	{
 		this.mainHandler = mainHandler;
@@ -244,28 +244,28 @@ public class VoiceRecognitionThread extends HandlerThread
 
 		Log.d("VoiceRecognitionThread", "New listening list: " + mVoiceConfigList.toString());
 	}
-	
+
 	public void changeVocabWithAction(HashMap<String, Runnable> vocabWithAction)
 	{
 		mActionMap = vocabWithAction;
-		
+
 		ArrayList<String> commands = new ArrayList<String>();
-		
+
 		for (String command : mActionMap.keySet())
 		{
 			commands.add(command);
 		}
-		
+
 		useSystemCommands(false);
 		changeVocab(commands);
 	}
-	
+
 	public void setContext(Context newContext)
 	{
 		mContext = newContext;
-		
+
 	}
-	
+
 	public void useSystemCommands(boolean use)
 	{
 		usingSystemCommands = use;
@@ -291,6 +291,10 @@ public class VoiceRecognitionThread extends HandlerThread
 	{
 		isShutdown = true;
 		mVoiceInputHelper.removeVoiceServiceListener();
+		if (mHelper != null)
+		{
+			mHelper.interrupt();
+		}
 		this.interrupt();
 	}
 
@@ -317,7 +321,7 @@ public class VoiceRecognitionThread extends HandlerThread
 		@Override
 		public VoiceConfig onVoiceCommand(VoiceCommand vc) {
 			String recognizedStr = vc.getLiteral();
-			
+
 			//Eliminate voice recognition bounce
 			if (recognizedStr.equals(lastCommand))// && (System.currentTimeMillis() - millisFromLastCommand < 1000))
 			{
@@ -327,7 +331,7 @@ public class VoiceRecognitionThread extends HandlerThread
 			}
 			lastCommand = recognizedStr;
 			millisFromLastCommand = System.currentTimeMillis();
-			
+
 			Log.i("VoiceRecognitionThread", "Recognized text: "+recognizedStr);
 
 			if (isListening)
@@ -338,10 +342,10 @@ public class VoiceRecognitionThread extends HandlerThread
 					Log.d("VoiceRecognitionThread", "Setting focus on All");
 					//focus on all robots
 					mApplication.setRobotInFocus("All");
-					
+
 					Message msg = mainHandler.obtainMessage(MainActivity.FOCUS_MESSAGE, "All");
 					mainHandler.sendMessageAtFrontOfQueue(msg);
-					
+
 					changeVocab(getDefaultRobotCommands());
 				}
 
@@ -350,11 +354,11 @@ public class VoiceRecognitionThread extends HandlerThread
 					Log.d("VoiceRecognitionThread", "Setting focus on: " + recognizedStr);
 					//Set focus on robot whos name was recognized
 					mApplication.setRobotInFocus(recognizedStr);
-					
+
 
 					Message msg = mainHandler.obtainMessage(MainActivity.FOCUS_MESSAGE, recognizedStr);
 					mainHandler.sendMessageAtFrontOfQueue(msg);
-					
+
 					changeVocab(getDefaultRobotCommands());
 				}
 				else
@@ -414,12 +418,12 @@ public class VoiceRecognitionThread extends HandlerThread
 					{
 
 					}
-					
+
 					else if (mActionMap != null && mActionMap.containsKey(recognizedStr))
 					{
 						mActionMap.get(recognizedStr).run();
 					}
-					
+
 					//If the recognized string is not a system command, it must be a robot command
 					else if (!recognizedStr.equals("Start listening"))
 					{
@@ -436,7 +440,7 @@ public class VoiceRecognitionThread extends HandlerThread
 								mHelper = new VoiceHelperThread(mApplication, recognizedStr, 
 										focus.getName(), mHandler);
 							}
-							
+
 							mHelper.start();
 							while(!mHelper.isReady());
 							mHelperHandler = mHelper.getHandler();

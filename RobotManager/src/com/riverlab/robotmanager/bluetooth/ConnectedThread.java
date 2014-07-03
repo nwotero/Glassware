@@ -52,7 +52,7 @@ public class ConnectedThread extends HandlerThread
 	private Handler mHandler = null;
 	private Handler mainHandler;
 	private Handler voiceHandler;
-	
+
 	Thread socketThread;
 
 	public ConnectedThread(Handler mainHandler, RobotManagerApplication app) 
@@ -61,12 +61,12 @@ public class ConnectedThread extends HandlerThread
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		mApplication = app;
 	}
-	
+
 	@Override
 	public void start()
 	{
 		super.start();
-		
+
 		mHandler = new Handler(getLooper()){
 			public void handleMessage(Message msg) 
 			{
@@ -89,7 +89,7 @@ public class ConnectedThread extends HandlerThread
 				}
 			}
 		};
-		
+
 		socketThread = new Thread()
 		{
 			@Override
@@ -237,7 +237,7 @@ public class ConnectedThread extends HandlerThread
 			return null;
 		}
 	}
-	
+
 	public void pollSocket() 
 	{
 
@@ -247,14 +247,18 @@ public class ConnectedThread extends HandlerThread
 		{
 			// Keep listening to the InputStream until an exception occurs	
 			String bufferString = "";
+			String[] pkts = null;
 
 			while (mApplication.getConnectionStatus()) 
 			{
 				Log.d("ConnectedThread", "Listening for message");
 
 				byte[] buffer = new byte[2048];  // buffer store for the stream
-				String messageString = "";
 				boolean incoming = false;
+				int packetNum = 0;
+				int packetSize = 0;
+				boolean invalid = false;
+				int bufferSlack = 100;
 
 				while(!incoming)
 				{
@@ -272,26 +276,77 @@ public class ConnectedThread extends HandlerThread
 						}
 					}
 				}
-				
-				String stringRep = new String(buffer).trim();
-				stringRep = stringRep.replace("_SPACE_", " ");
-				
-				bufferString += stringRep;
-				
-				Log.d("ConnectedThread", "Buffer: " + bufferString);
 
-				if (bufferString.contains("_END"))
+				String headerString = new String(buffer);
+
+				if ((headerString.substring(0, 5).equals("<msg>")) && (headerString.indexOf("</msg>") != -1))
 				{
-					messageString = bufferString.substring(0, 
-							bufferString.indexOf("_END"));
-					bufferString = bufferString.substring(
-							bufferString.indexOf("_END")+4);
+					headerString = headerString.replace("<msg>", "").replace("</msg>", "");
+					String[] parts = headerString.split("_DELIM_");
+					packetNum = Integer.parseInt(parts[0]);
+					packetSize = Integer.parseInt(parts[1]);
 
+					byte[] pktBuffer = new byte[packetSize + bufferSlack];
+					pktBuffer = read();
 
-					Log.d("ConnectedThread", "Message read");
+					String pktString = new String(pktBuffer);
+					pkts = new String[packetNum];
 
-					String[] messageParts = messageString.split("_DELIM_");
+					for (int i = 0; i < packetNum; i++)
+					{
+						if ((pktString.substring(0, 5).equals("<pkt>")) && (pktString.indexOf("</pkt>") != -1))
+						{
+							pktString = pktString.replace("<pkt>", "").replace("</pkt>", "");
+
+							if ((pktString.substring(0, 5).equals("<index>")) && (pktString.indexOf("</index>") != -1))
+							{
+								String pktIndexString = pktString.substring(5, pktString.indexOf("</index>"));
+								int pktIndex = Integer.parseInt(pktIndexString);
+
+								String pktBody = pktString.substring(
+										pktString.indexOf("</index>") + 8);
+
+								if (pktBody.indexOf("</pkt>") != -1)
+								{
+									pkts[pktIndex] = pktBody.substring(0,
+											pktBody.indexOf("</pkt>"));
+								}
+								else
+								{
+									invalid = true;
+								}
+							}//Check index tags
+							else
+							{
+								invalid = true;
+							}
+						}//Check packet tags
+						else
+						{
+							invalid = true;
+						}
+					}//Loop for all packets under header
+				}//Check header tags
+				else
+				{
+					invalid = true;
+				}
+
+				if (invalid)
+				{
+					write("Delivery failed".getBytes());
+				}
+				else
+				{
+					String message = "";
+					for (String str : pkts)
+					{
+						message += str;
+					}
+
+					String[] messageParts = message.split("_DELIM_");
 					Log.d("ConnectedThread", "Message type: " + messageParts[0]);
+
 
 					if(messageParts[0].equals("robot_configuration"))
 					{
@@ -344,63 +399,11 @@ public class ConnectedThread extends HandlerThread
 					}
 				}
 
-			}
-			/*
-				//Listen for message
-
-				try {
-					// Read from the InputStream
-					mInStream.read(buffer);
-
-					String messageType = new String(buffer).trim();
-
-					Log.d("ConnectedThread", "Message Received " + messageType);
-
-					if(!(messageType.equals("robot_configuration") | messageType.equals("text_message") | messageType.equals("image_message")))
-					{
-						Log.d("ConnectedThread", "Invalid message type");
-						continue;
-					}
-
-					//Parse sender
-					Log.d("ConnectedThread", "Parsing message sender");
-					buffer = new byte[1024];  // buffer store for the stream
-					String sender = "";
-					try 
-					{
-						mInStream.read(buffer);
-						sender = new String(buffer).trim();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-
-					if (messageType.equals("robot_configuration"))
-					{
-						parseRobotConfiguration(sender);
-					}
-					if (messageType.equals("text_message"))
-					{
-						parseTextMessage(sender);
-					}
-
-					/*msg.fromByteArray(buffer);
-
-					String type = msg.getType();
-					if (type.equals("Text"))
-					{
-						sendMainMessage(msg);
-					}
-
-				} catch (IOException e)
-				{
-					e.printStackTrace();
-					break;
-				}
-			 */
-
-		}
-	}
+			}//While connected loop
+		}//While alive
+		
+		
+	}//Function
 
 	private void parseRobotConfiguration(String sender)
 	{
@@ -623,5 +626,8 @@ public class ConnectedThread extends HandlerThread
 			disconnect();
 		}
 		isShutdown = true;
+		
+		this.socketThread.interrupt();
+		this.interrupt();
 	}
 }
