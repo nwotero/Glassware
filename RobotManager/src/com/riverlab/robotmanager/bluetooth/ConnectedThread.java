@@ -60,6 +60,15 @@ public class ConnectedThread extends HandlerThread
 		super("Bluetooth Connection Thread");
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		mApplication = app;
+
+		socketThread = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				receivePackets();
+			}
+		};
 	}
 
 	@Override
@@ -88,17 +97,7 @@ public class ConnectedThread extends HandlerThread
 					break;
 				}
 			}
-		};
-
-		socketThread = new Thread()
-		{
-			@Override
-			public void run()
-			{
-				pollSocket();
-			}
-		};
-		socketThread.start();
+		};		
 	}
 
 	public synchronized boolean isReady()
@@ -210,6 +209,8 @@ public class ConnectedThread extends HandlerThread
 					connectionMessage.obj = "connected";
 					mainHandler.sendMessageAtFrontOfQueue(connectionMessage);
 
+					socketThread.start();
+
 					return true;
 				}
 				else
@@ -225,11 +226,32 @@ public class ConnectedThread extends HandlerThread
 
 	public synchronized byte[] read()
 	{
-		byte[] buffer = new byte[2048];
+		try {
+			int available = mInStream.available(); 
+			if (available > 0) 
+			{ 
+				byte[] buffer = new byte[available]; 
+				mInStream.read(buffer); 
+				return buffer;
+			}
+			else
+			{
+				return null;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			Log.d("ConnectedThread", "Error reading message");
+			return null;
+		}
+	}
+
+	public synchronized byte[] read(int length)
+	{
+		byte[] buffer = new byte[length];
 
 		try {
 			buffer = new byte[2048];
-			mInStream.read(buffer);
+			mInStream.read(buffer, 0, length);
 			return buffer;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -238,7 +260,7 @@ public class ConnectedThread extends HandlerThread
 		}
 	}
 
-	public void pollSocket() 
+	/*public void pollSocket() 
 	{
 
 		Log.d("ConnectedThread", "Polling socket");
@@ -253,300 +275,294 @@ public class ConnectedThread extends HandlerThread
 			{
 				Log.d("ConnectedThread", "Listening for message");
 
-				byte[] buffer = new byte[2048];  // buffer store for the stream
 				boolean incoming = false;
 				int packetNum = 0;
 				int packetSize = 0;
 				boolean invalid = false;
 				int bufferSlack = 100;
 
-				while(!incoming)
+
+
+				byte[] pktBuffer = new byte[packetSize + bufferSlack];
+				pktBuffer = read();
+
+				String pktString = new String(pktBuffer);
+				pkts = new String[packetNum];
+
+
+				String message = "";
+				for (String str : pkts)
 				{
-					synchronized (readWriteLock) 
-					{
-						try {
-							if (mInStream.available() > 0)
-							{
-								buffer = read();
-								incoming = true;
-							}
-						} catch (IOException e) {
-							//e.printStackTrace();
-							incoming = false;
-						}
-					}
+					message += str;
 				}
 
-				String headerString = new String(buffer);
 
-				if ((headerString.substring(0, 5).equals("<msg>")) && (headerString.indexOf("</msg>") != -1))
-				{
-					headerString = headerString.replace("<msg>", "").replace("</msg>", "");
-					String[] parts = headerString.split("_DELIM_");
-					packetNum = Integer.parseInt(parts[0]);
-					packetSize = Integer.parseInt(parts[1]);
-
-					byte[] pktBuffer = new byte[packetSize + bufferSlack];
-					pktBuffer = read();
-
-					String pktString = new String(pktBuffer);
-					pkts = new String[packetNum];
-
-					for (int i = 0; i < packetNum; i++)
-					{
-						if ((pktString.substring(0, 5).equals("<pkt>")) && (pktString.indexOf("</pkt>") != -1))
-						{
-							pktString = pktString.replace("<pkt>", "").replace("</pkt>", "");
-
-							if ((pktString.substring(0, 5).equals("<index>")) && (pktString.indexOf("</index>") != -1))
-							{
-								String pktIndexString = pktString.substring(5, pktString.indexOf("</index>"));
-								int pktIndex = Integer.parseInt(pktIndexString);
-
-								String pktBody = pktString.substring(
-										pktString.indexOf("</index>") + 8);
-
-								if (pktBody.indexOf("</pkt>") != -1)
-								{
-									pkts[pktIndex] = pktBody.substring(0,
-											pktBody.indexOf("</pkt>"));
-								}
-								else
-								{
-									invalid = true;
-								}
-							}//Check index tags
-							else
-							{
-								invalid = true;
-							}
-						}//Check packet tags
-						else
-						{
-							invalid = true;
-						}
-					}//Loop for all packets under header
-				}//Check header tags
-				else
-				{
-					invalid = true;
-				}
-
-				if (invalid)
-				{
-					write("Delivery failed".getBytes());
-				}
-				else
-				{
-					String message = "";
-					for (String str : pkts)
-					{
-						message += str;
-					}
-
-					String[] messageParts = message.split("_DELIM_");
-					Log.d("ConnectedThread", "Message type: " + messageParts[0]);
-
-
-					if(messageParts[0].equals("robot_configuration"))
-					{
-						Log.d("ConnectedThread", "Configuring Robot");
-						Robot newRobot = new Robot();
-						newRobot.setName(messageParts[1]);
-						newRobot.setInfo(messageParts[2]);
-						newRobot.setVocabulary(new Vocabulary(messageParts[3]));
-
-						Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.ADD_VOCAB_MESSAGE, newRobot.getName());
-						voiceHandler.sendMessageAtFrontOfQueue(msg);
-
-						mApplication.addRobot(newRobot);
-
-						Log.d("ConnectedThread", "Writing confirmation");
-						write("configuration complete\n".getBytes());
-					}
-					else if(messageParts[0].equals("text_message"))
-					{
-						Log.d("ConnectedThread", "Reading text message");
-						RobotMessage msg = new RobotMessage();
-						msg.setType("Text");
-						msg.setSender(messageParts[1]);
-						msg.setText(messageParts[2]);
-						msg.setPriority(Integer.parseInt(messageParts[3]));
-
-						Calendar cal = Calendar.getInstance();
-						SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-						msg.setTimestamp(sdf.format(cal.getTime()));
-
-						Log.d("ConnectedThread", "Adding text message to messages");
-						mApplication.addMessage(msg);
-					}
-					else if(messageParts[0].equals("image_message"))
-					{
-						Log.d("ConnectedThread", "Reading image message");
-						RobotMessage msg = new RobotMessage();
-						msg.setType("Image");
-						msg.setSender(messageParts[1]);
-						msg.setText(messageParts[2]);
-						msg.setImage(messageParts[3]);
-						msg.setPriority(Integer.parseInt(messageParts[4]));
-
-						Calendar cal = Calendar.getInstance();
-						SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-						msg.setTimestamp(sdf.format(cal.getTime()));
-
-						Log.d("ConnectedThread", "Adding text message to messages");
-						mApplication.addMessage(msg);
-					}
-				}
 
 			}//While connected loop
 		}//While alive
-		
-		
-	}//Function
 
-	private void parseRobotConfiguration(String sender)
+
+	}//Function */
+
+	private void receivePackets()
 	{
-		Log.d("ConnectedThread", "Parsing configuration message");
+		Log.i("ConnectedThread", "Packet listener thread enabled");
 
-		byte[] buffer = new byte[8192];  // buffer store for the stream, 8 KB
-		String confirmation = "configuration complete\n";
-		String failure = "failed to read ";
+		byte[] buffer = new byte[30];  // buffer store for the stream
+		int packetNum = 0;
+		int packetSize = 0;
+		String message;
 
+		while(mApplication.getConnectionStatus())
+		{
+			Log.i("ConnectedThread", "Listening for packet header");
+
+			String tempString = "";
+			while (!hasFullHeader(tempString))
+			{	
+				byte[] bytes = read();
+				if (bytes != null)
+				{
+					String readString = new String(bytes).trim();
+					tempString += readString;
+				}
+			}
+
+			String headerString = tempString;
+			Log.i("ConnectedThread", "Header: " + headerString);
+
+			if ((headerString.substring(0, 5).equals("<msg>")) && (headerString.indexOf("</msg>") != -1))
+			{
+				headerString = headerString.replace("<msg>", "").replace("</msg>", "");
+				String[] parts = headerString.split("_DELIM_");
+				packetNum = Integer.parseInt(parts[0]);
+				packetSize = Integer.parseInt(parts[1]);
+			}
+
+			Log.i("ConnectedThread", "Expecting " + Integer.toString(packetNum)
+					+ " packets of size " + Integer.toString(packetSize)
+					+ " bytes");
+
+			message = getPacketData(packetNum, packetSize);
+			String[] messageParts = message.split("_DELIM_");
+			Log.d("ConnectedThread", "Message type: " + messageParts[0]);
+
+
+			if(messageParts[0].equals("robot_configuration"))
+			{
+				parseRobotConfiguration(messageParts[1], messageParts[2], messageParts[3]);
+			}
+			else if(messageParts[0].equals("text_message"))
+			{
+				parseTextMessage(messageParts[1], messageParts[2], messageParts[3]);
+			}
+			else if(messageParts[0].equals("image_message"))
+			{
+				parseImageMessage(messageParts[1], messageParts[2], messageParts[3], messageParts[4]);
+			}
+		}
+	}
+
+	private String getPacketData(int numPackets, int pktSize)
+	{
+		Log.i("ConnectedThread", "Getting packet data");
+
+		int metaSize = 27;
+		String pktData = "";
+		int deltaT = 3000;
+		double stopTime = System.currentTimeMillis() + deltaT;
+
+		for (int i = 0; i < numPackets && 
+				System.currentTimeMillis() != stopTime; i++)
+		{
+			Log.i("ConnectedThread", "Listening for packets");
+			String tempString = "";
+			while (!isShutdown)
+			{
+				while (!hasFullPacket(tempString))
+				{	
+					byte[] bytes = read();
+					if (bytes != null)
+					{
+						String readString = new String(bytes).trim();
+						tempString += readString;
+					}
+				}
+				Log.i("ConnectedThread", "Packet received");
+				Log.i("ConnectedThread", "Raw: " + tempString);
+				tempString = conditionData(tempString, i+1);
+				Log.i("ConnectedThread", "Conditioned: " + tempString);
+				Log.i("ConnectedThread", "Asking for next packet");
+				write("_NEXT_\n".getBytes());
+				break;
+			}
+			if (tempString == null)
+			{
+				Log.d("ConnectedThread", "Could not read packet #" + Integer.toString(i));
+			}
+			else
+			{
+				pktData += tempString;
+			}
+		}
+		pktData = pktData.replace("_SPACE_", " ");
+		return pktData;
+	}
+
+	private boolean hasFullHeader(String strBuffer)
+	{
+		int start = strBuffer.indexOf("<msg>");
+		if (start >= 0)
+		{
+			int end = strBuffer.indexOf("</msg>", start);
+			if (end >= 0)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	
+	private boolean hasFullPacket(String strBuffer)
+	{
+		int start = strBuffer.indexOf("<pkt>");
+		if (start >= 0)
+		{
+			int end = strBuffer.indexOf("</pkt>", start);
+			if (end >= 0)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	private String conditionData(String rawString, int expectedIndex)
+	{
+		String conditionedString = "";
+		boolean invalid = false;
+
+		if ((rawString.substring(0, 5).equals("<pkt>")) && (rawString.indexOf("</pkt>") != -1))
+		{
+			rawString = rawString.replace("<pkt>", "");
+			Log.d("ConnectedThread", "Remove pkt tags " + rawString);
+
+			if ((rawString.substring(0, 7).equals("<index>")) && (rawString.indexOf("</index>") != -1))
+			{
+				String pktIndexString = rawString.substring(7, rawString.indexOf("</index>"));
+				int pktIndex = Integer.parseInt(pktIndexString);
+
+				String pktBody = rawString.substring(
+						rawString.indexOf("</index>") + 8);
+
+				if (pktBody.indexOf("</pkt>") != -1)
+				{
+					if (expectedIndex == pktIndex)
+					{
+						conditionedString = pktBody.substring(0,
+								pktBody.indexOf("</pkt>"));
+
+						conditionedString = conditionedString.replace("_SPACE_", " ");
+					}
+					else
+					{
+						invalid = true;
+						Log.i("ConnectedThread", "Packet index does not match expected index");
+					}
+				}
+				else
+				{
+					invalid = true;
+					Log.i("ConnectedThread", "End of packet not read");
+				}
+			}//Check index tags
+			else
+			{
+				invalid = true;
+				Log.i("ConnectedThread", "Index tags not read");
+			}
+		}//Check packet tags
+		else
+		{
+			invalid = true;
+			Log.i("ConnectedThread", "Begin packet tag not read");
+		}
+
+		if (invalid)
+		{
+			conditionedString = null;
+			Log.i("ConnectedThread", "Invalid packet");
+		}
+
+		return conditionedString;
+	}
+
+	private void parseRobotConfiguration(String sender, String info, String rawVocab)
+	{
+		Log.d("ConnectedThread", "Configuring Robot");
 		Robot newRobot = new Robot();
 		newRobot.setName(sender);
-
-		//Parse robot information
-		Log.d("ConnectedThread", "Parsing configuration info");
-		String info = "";
-		try 
-		{
-			mInStream.read(buffer);
-			info = new String(buffer).trim();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			write(failure.concat("info").getBytes());
-			return;
-		}
 		newRobot.setInfo(info);
-		Log.d("ConnectedThread", "Configuration info is: " + info);
+		newRobot.setVocabulary(new Vocabulary(rawVocab));
 
-		//Parse robot vocabulary
-		Log.d("ConnectedThread", "Parsing configuration vocabulary");
-		String vocabString = "";
-		try {
-			mInStream.read(buffer);
-			vocabString = new String(buffer).trim();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			write(failure.concat("vocabulary").getBytes());
-			return;
-		}
-		Log.d("ConnectedThread", "Configuration vocabulary is: " + vocabString);
-		newRobot.setVocabulary(new Vocabulary(vocabString));
+		Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.ADD_VOCAB_MESSAGE, newRobot.getName());
+		voiceHandler.sendMessageAtFrontOfQueue(msg);
 
 		mApplication.addRobot(newRobot);
+
 		Log.d("ConnectedThread", "Writing confirmation");
-		write(confirmation.getBytes());
+		write("configuration complete\n".getBytes());
 	}
 
 
-	private void parseTextMessage(String sender)
+	private void parseTextMessage(String sender, String text, String strPriority)
 	{
-		byte[] buffer = new byte[8192];  // buffer store for the stream, 8 KB
-		String confirmation = "confirm receipt";
-		String failure = "failed to read";
+		Log.d("ConnectedThread", "Reading text message");
+		RobotMessage msg = new RobotMessage();
+		msg.setType("Text");
+		msg.setSender(sender);
+		msg.setText(text);
+		msg.setPriority(Integer.parseInt(strPriority));
 
-		//Parse message text
-		String text = "";
-		try 
-		{
-			mInStream.read(buffer);
-			text = new String(buffer);
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
+		Calendar cal = Calendar.getInstance();
+		SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+		msg.setTimestamp(sdf.format(cal.getTime()));
 
-		//Parse message priority
-		int priority = 0;
-		try 
-		{
-			mInStream.read(buffer);
-			priority = ByteBuffer.wrap(buffer).getInt();
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
-
-		RobotMessage inMsg = new RobotMessage(sender, "text", text, priority);
-		mApplication.addMessage(inMsg);
-
-		write(confirmation.getBytes());
+		Log.d("ConnectedThread", "Adding text message to messages");
+		mApplication.addMessage(msg);
 	}
 
-	private void parseImageMessage(String sender)
+	private void parseImageMessage(String sender, String text, String base64Image, String strPriority)
 	{
-		byte[] buffer = new byte[8192];  // buffer store for the stream, 8 KB
-		String confirmation = "confirm receipt";
-		String failure = "failed to read";
+		Log.d("ConnectedThread", "Reading image message");
+		RobotMessage msg = new RobotMessage();
+		msg.setType("Image");
+		msg.setSender(sender);
+		msg.setText(text);
+		msg.setImage(base64Image);
+		msg.setPriority(Integer.parseInt(strPriority));
 
-		//Parse message text
-		String text = "";
-		try 
-		{
-			mInStream.read(buffer);
-			text = new String(buffer);
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
+		Calendar cal = Calendar.getInstance();
+		SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+		msg.setTimestamp(sdf.format(cal.getTime()));
 
-		//Parse message priority
-		int priority = 0;
-		try 
-		{
-			mInStream.read(buffer);
-			priority = ByteBuffer.wrap(buffer).getInt();
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
-
-		//Parse message size
-		int numBytes = 0;
-		try 
-		{
-			mInStream.read(buffer);
-			priority = ByteBuffer.wrap(buffer).getInt();
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
-
-		byte[] imgBuffer = new byte[numBytes];
-		Bitmap img;
-		try 
-		{
-			mInStream.read(imgBuffer);
-			img = BitmapFactory.decodeByteArray(buffer, 0, numBytes);
-		} catch (IOException e) {
-			e.printStackTrace();
-			write(failure.getBytes());
-			return;
-		}
-
-		RobotMessage inMsg = new RobotMessage(sender, "image", img, priority);
-		mApplication.addMessage(inMsg);
-
-		write(confirmation.getBytes());
+		Log.d("ConnectedThread", "Adding text message to messages");
+		mApplication.addMessage(msg);
 	}
 
 	public synchronized void write(byte[] bytes) {
@@ -611,6 +627,7 @@ public class ConnectedThread extends HandlerThread
 		try 
 		{
 			write("end connection\n".getBytes());
+			socketThread.interrupt();
 			mBtSocket.close();
 			mApplication.setConnectionStatus(false);
 		} 
@@ -626,7 +643,7 @@ public class ConnectedThread extends HandlerThread
 			disconnect();
 		}
 		isShutdown = true;
-		
+
 		this.socketThread.interrupt();
 		this.interrupt();
 	}

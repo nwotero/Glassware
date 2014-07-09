@@ -34,34 +34,41 @@ public final class R {
     }
     public static final class id {
         public static final int address=0x7f0a0006;
-        public static final int close=0x7f0a0011;
+        public static final int close=0x7f0a0016;
         public static final int commandView=0x7f0a0004;
-        public static final int connectMenuItem=0x7f0a000d;
+        public static final int connectMenuItem=0x7f0a0011;
         public static final int connectionStatus=0x7f0a0002;
         public static final int focusView=0x7f0a0003;
         public static final int headline=0x7f0a0007;
         public static final int imageView=0x7f0a0000;
         public static final int messageText=0x7f0a0008;
+        public static final int msgCounterText=0x7f0a000a;
+        public static final int msgNextText=0x7f0a000e;
+        public static final int msgPreviousText=0x7f0a000d;
         public static final int name=0x7f0a0005;
-        public static final int scrollBody=0x7f0a000b;
-        public static final int scrollLinearLayout=0x7f0a000c;
-        public static final int testImageView=0x7f0a000a;
-        public static final int timestampText=0x7f0a0009;
+        public static final int nextMsgText=0x7f0a0009;
+        public static final int scrollBody=0x7f0a000f;
+        public static final int scrollLinearLayout=0x7f0a0010;
+        public static final int testImageView=0x7f0a000b;
+        public static final int timestampText=0x7f0a000c;
         public static final int title=0x7f0a0001;
-        public static final int viewDevices=0x7f0a000e;
-        public static final int viewMessages=0x7f0a000f;
-        public static final int viewRobots=0x7f0a0010;
+        public static final int viewDevices=0x7f0a0013;
+        public static final int viewImageMenuItem=0x7f0a0012;
+        public static final int viewMessages=0x7f0a0014;
+        public static final int viewRobots=0x7f0a0015;
     }
     public static final class layout {
         public static final int activity_main=0x7f030000;
         public static final int device_card=0x7f030001;
-        public static final int message_card=0x7f030002;
-        public static final int robot_card=0x7f030003;
+        public static final int image_message_card=0x7f030002;
+        public static final int message_card=0x7f030003;
+        public static final int robot_card=0x7f030004;
     }
     public static final class menu {
         public static final int device=0x7f090000;
-        public static final int main=0x7f090001;
-        public static final int robot=0x7f090002;
+        public static final int image_message=0x7f090001;
+        public static final int main=0x7f090002;
+        public static final int robot=0x7f090003;
     }
     public static final class string {
         public static final int app_name=0x7f070000;
@@ -74,13 +81,20 @@ public final class R {
         public static final int init_command=0x7f07000c;
         public static final int message_placeholder=0x7f07000d;
         public static final int message_txt_placeholder=0x7f07000e;
+        public static final int msg_counter=0x7f070015;
+        public static final int next=0x7f070011;
+        public static final int no_next=0x7f070012;
+        public static final int no_previous=0x7f070014;
         public static final int not_connected=0x7f07000a;
+        public static final int previous=0x7f070013;
         public static final int timestamp_txt_placeholder=0x7f07000f;
         public static final int view_devices=0x7f070005;
+        public static final int view_image=0x7f070016;
         public static final int view_messages=0x7f070007;
         public static final int view_messages_label=0x7f070003;
         public static final int view_robots=0x7f070006;
         public static final int view_robots_label=0x7f070002;
+        public static final int view_text=0x7f070017;
     }
     public static final class style {
         /** 

@@ -4,6 +4,7 @@ import java.util.List;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -23,7 +24,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         this.context = context;
     }
 	
-	public void addDevice(RobotMessage msg) {
+	public void addMessage(RobotMessage msg) {
         mMessages.add(msg);
     }
 
@@ -49,6 +50,9 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 	        TextView text;
 	        ImageView img;
 	        TextView timestamp;
+	        TextView nextTxt;
+	        TextView prevTxt;
+	        TextView msgCounter;
 	    }
 
 	@Override
@@ -57,10 +61,14 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         if (convertView == null) {
             convertView = View.inflate(context, R.layout.message_card, null);
             holder = new ViewHolder();
+            Log.d("MessageActivity", "Getting views");
             holder.headline = (TextView) convertView.findViewById(R.id.headline);
             holder.text = (TextView) convertView.findViewById(R.id.messageText);
-            holder.img = (ImageView) convertView.findViewById(R.id.testImageView);
+            holder.img = (ImageView) convertView.findViewById(R.id.imageView);
             holder.timestamp = (TextView) convertView.findViewById(R.id.timestampText);
+            holder.nextTxt = (TextView) convertView.findViewById(R.id.msgNextText);
+            holder.prevTxt = (TextView) convertView.findViewById(R.id.msgPreviousText);
+            holder.msgCounter = (TextView) convertView.findViewById(R.id.msgCounterText);
             
             convertView.setTag(holder);
         }
@@ -71,11 +79,50 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         RobotMessage msg = getItem(position);
         holder.headline.setText(msg.getType() + " message from: " + msg.getSender());
         holder.text.setText(msg.getText());
-        if (msg.getType().equals("Image"))
+  
+        if (msg.getType().equals("Image") && msg.getImage() != null)
+        {
         	holder.img.setImageBitmap(msg.getImage());
+        	holder.img.setVisibility(View.VISIBLE);
+        	holder.text.setVisibility(View.INVISIBLE);
+        }
         holder.timestamp.setText("Received: " + msg.getTimestamp());
+        
+        
+        if (hasNext(position))
+        {
+        	holder.nextTxt.setText(R.string.next);
+        }
+        else
+        {
+        	holder.nextTxt.setText(R.string.no_next);
+        }
+        
+        if (hasPrevious(position))
+        {
+        	holder.prevTxt.setText(R.string.previous);
+        }
+        else
+        {
+        	holder.prevTxt.setText(R.string.no_previous);
+        }
+        
+        holder.msgCounter.setText((position + 1) + " of " + mMessages.size());
 
         return convertView;
+	}
+	
+	private boolean hasNext(int position)
+	{
+		int last = mMessages.size();
+		int next = position + 1;
+
+		return next < last;
+	}
+	
+	private boolean hasPrevious(int position)
+	{
+		return position > 0;
 	}
 
 }

@@ -132,7 +132,7 @@ public class RobotManagerApplication extends Application
 
 	public void addMessage(RobotMessage newMsg)
 	{
-		msgs.add(0, newMsg);
+		msgs.add(newMsg);
 		if (msgListActivity != null)
 		{
 			msgListActivity.onMessageAddition();
