@@ -77,8 +77,13 @@ public class MessageListActivity extends Activity implements AdapterView.OnItemC
 			Runnable guiUpdate = new Runnable() {
 				@Override
 				public void run() {
-					ImageView imgView = (ImageView)findViewById(R.id.imageView);
-					TextView msgView = (TextView)findViewById(R.id.messageText);
+					int index = mCardScrollView.getSelectedItemPosition();
+					if (mMessages.get(index).getType() == "Text")
+						return;
+					
+					View curView = mCardScrollView.getChildAt(mCardScrollView.getSelectedItemPosition());
+					ImageView imgView = (ImageView)curView.findViewById(R.id.imageView);
+					TextView msgView = (TextView)curView.findViewById(R.id.messageText);
 					
 					imgView.setVisibility(View.VISIBLE);
 					msgView.setVisibility(View.INVISIBLE);
@@ -97,8 +102,9 @@ public class MessageListActivity extends Activity implements AdapterView.OnItemC
 			Runnable guiUpdate = new Runnable() {
 				@Override
 				public void run() {
-					ImageView imgView = (ImageView)findViewById(R.id.imageView);
-					TextView msgView = (TextView)findViewById(R.id.messageText);
+					View curView = mCardScrollView.getChildAt(mCardScrollView.getSelectedItemPosition());
+					ImageView imgView = (ImageView)curView.findViewById(R.id.imageView);
+					TextView msgView = (TextView)curView.findViewById(R.id.messageText);
 					
 					imgView.setVisibility(View.INVISIBLE);
 					msgView.setVisibility(View.VISIBLE);

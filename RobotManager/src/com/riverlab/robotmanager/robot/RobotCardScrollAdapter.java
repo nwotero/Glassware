@@ -6,11 +6,13 @@ import android.content.Context;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebView.FindListener;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.android.glass.widget.CardScrollAdapter;
+import com.google.android.search.core.util.HttpHelper.GetRequest;
 import com.riverlab.robotmanager.R;
 import com.riverlab.robotmanager.R.id;
 import com.riverlab.robotmanager.R.layout;
@@ -45,6 +47,9 @@ public class RobotCardScrollAdapter extends CardScrollAdapter {
 	class ViewHolder {
 		TextView name;
 		TextView infoTextView;
+		TextView prevTxt;
+		TextView nextTxt;
+		TextView robotCounter;
 	}
 
 	@Override
@@ -80,15 +85,57 @@ public class RobotCardScrollAdapter extends CardScrollAdapter {
 			holder.infoTextView.setLayoutParams(lp);
 			holder.infoTextView.setGravity(Gravity.LEFT);
 			holder.infoTextView.setPadding(30, 10, 30, 10);
+			holder.infoTextView.setTextColor(context.getResources().getColor(R.color.blue));
 			ll.addView(holder.infoTextView);
+			
+			holder.prevTxt = (TextView) convertView.findViewById(R.id.robotPreviousText);
+			holder.nextTxt = (TextView) convertView.findViewById(R.id.robotNextText);
+			holder.robotCounter = (TextView) convertView.findViewById(R.id.robotCounterText);
 			
 			convertView.setTag(holder);
 		} else 
 		{
 			holder = (ViewHolder) convertView.getTag();
 		}
+		
+		if (hasNext(position))
+        {
+        	holder.nextTxt.setVisibility(View.VISIBLE);
+        	holder.nextTxt.setText(R.string.next);
+        }
+        else
+        {
+        	holder.nextTxt.setVisibility(View.INVISIBLE);
+        	//holder.nextTxt.setText(R.string.no_next);
+        }
+        
+        if (hasPrevious(position))
+        {
+        	holder.prevTxt.setVisibility(View.VISIBLE);
+        	holder.prevTxt.setText(R.string.previous);
+        }
+        else
+        {
+        	holder.prevTxt.setVisibility(View.INVISIBLE);
+        	//holder.prevTxt.setText(R.string.no_previous);
+        }
+        
+        holder.robotCounter.setText((position + 1) + " of " + mRobotList.size());
 
 		return convertView;
+	}
+	
+	private boolean hasNext(int position)
+	{
+		int last = mRobotList.size();
+		int next = position + 1;
+
+		return next < last;
+	}
+	
+	private boolean hasPrevious(int position)
+	{
+		return position > 0;
 	}
 
 	@Override

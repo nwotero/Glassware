@@ -51,12 +51,11 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
 	//Bluetooth global variables
-	private BluetoothAdapter mBluetoothAdapter;
 	private ConnectedThread mConnectedThread;
-	private boolean isConnected = false;
+	private VoiceRecognitionThread mVoiceThread;
 	
 	//Handler constants and definition
-	public static final int TEXT_MESSAGE = 0;
+	public static final int MESSAGE_LIST_MESSAGE = 0;
 	public static final int IMAGE_MESSAGE = 1;
 	public static final int VIDEO_MESSAGE = 2;
 	public static final int CONNECTION_MESSAGE = 3;
@@ -64,6 +63,7 @@ public class MainActivity extends Activity {
 	public static final int COMMAND_MESSAGE = 5;
 	public static final int SHUTDOWN_MESSAGE = 6;
 	public static final int ROBOT_LIST_MESSAGE = 7;
+	public static final int NEW_MESSAGE_MESSAGE = 8;
 
 
 	//This Handler handles messages sent from the ConnectedThread for received bluetooth messages
@@ -71,23 +71,18 @@ public class MainActivity extends Activity {
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
-			case TEXT_MESSAGE:
-				//Intent messageIntent = new Intent(MainActivity.this, MessageActivity.class);
-				//messageIntent.putExtra("Message", (Parcelable)msg.obj);
-				//startActivity(messageIntent);
+			case MESSAGE_LIST_MESSAGE:
 				launchMessageListActivity();
 				break;
 			case CONNECTION_MESSAGE:
 				String text = (String)msg.obj;
 				if (text.equals("connected"))
 				{
-					connectionStatusTextView.setText(R.string.connected);
 					imageView.setImageResource(R.drawable.ic_bluetooth_on_big);
 				}
 				else if (text.equals("disconnected"))
 				{
-					connectionStatusTextView.setText(R.string.not_connected);
-					imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
+					imageView.setImageResource(R.drawable.not_connected_cross);
 				}
 				break;
 			case FOCUS_MESSAGE:
@@ -104,6 +99,8 @@ public class MainActivity extends Activity {
 			case ROBOT_LIST_MESSAGE:
 				launchRobotListActivity();
 				break;
+			case NEW_MESSAGE_MESSAGE:
+				updateMessageView(1);
 			}
 		}
 	};
@@ -115,11 +112,14 @@ public class MainActivity extends Activity {
 	private static final String LIVE_CARD_ID = "robot_manager";
 
 	//GUI global variables
-	private TextView connectionStatusTextView;
 	private ImageView imageView;
 	private GestureDetector mGestureDetector;
 	private TextView commandView;
 	private TextView focusView;
+	private TextView messageView;
+	private int numMsgs = 0;
+	private int numNewMsgs = 0;
+	private boolean msgFlag = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) 
@@ -131,40 +131,42 @@ public class MainActivity extends Activity {
 		mGestureDetector = createGestureDetector(this);
 
 		setContentView(R.layout.activity_main);
-		connectionStatusTextView = (TextView) findViewById(R.id.connectionStatus);
 		imageView = (ImageView) findViewById(R.id.imageView);
+		messageView = (TextView) findViewById(R.id.messageView);
 		commandView = (TextView)findViewById(R.id.commandView);
 		focusView = (TextView)findViewById(R.id.focusView);
 		mApplication = ((RobotManagerApplication) this.getApplication());
 		
-		ConnectedThread connectedThread = new ConnectedThread(mHandler, mApplication);
-		VoiceRecognitionThread voiceThread = new VoiceRecognitionThread(mApplication, this);
-
-		connectedThread.start();
-		voiceThread.start();
+		imageView.setImageResource(R.drawable.not_connected_cross);
 		
-		while(!connectedThread.isReady() ||  !voiceThread.isReady());
+		mConnectedThread = new ConnectedThread(mHandler, mApplication);
+		mVoiceThread = new VoiceRecognitionThread(mApplication, this);
+
+		mConnectedThread.start();
+		mVoiceThread.start();
+		
+		while(!mConnectedThread.isReady() && !mVoiceThread.isReady());
 		
 		mApplication.setMainThreadHandler(mHandler);
-		mApplication.setConnectedThreadHandler(connectedThread.getHandler());
-		mApplication.setVoiceThreadHandler(voiceThread.getHandler());
+		mApplication.setConnectedThreadHandler(mConnectedThread.getHandler());
+		mApplication.setVoiceThreadHandler(mVoiceThread.getHandler());
 		
-		connectedThread.setHandlers(mHandler, voiceThread.getHandler());
-		voiceThread.setHandlers(mHandler, connectedThread.getHandler());
+		mConnectedThread.setHandlers(mHandler, mVoiceThread.getHandler());
+		mVoiceThread.setHandlers(mHandler, mConnectedThread.getHandler());
 		
 		Thread.currentThread().setName("Main Activity Thread");
-		connectedThread.setName("Connected Thread");
-		voiceThread.setName("Voice Recognition Thread");
+		mConnectedThread.setName("Connected Thread");
+		mVoiceThread.setName("Voice Recognition Thread");
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
-		imageView.setImageResource(R.drawable.ic_bluetooth_off_big);
 		//mApplication.getVoiceThread().setListeningStatus(true);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		
 		Handler voiceHandler = mApplication.getVoiceThreadHandler();
+		
 		Message msg = voiceHandler.obtainMessage(
 				VoiceRecognitionThread.CONTEXT_MESSAGE, 
 				this);
@@ -184,14 +186,24 @@ public class MainActivity extends Activity {
 				VoiceRecognitionThread.LISTENING_MESSAGE, 
 				true);
 		voiceHandler.sendMessage(msg);
+		
+		if (msgFlag)
+		{
+			numNewMsgs = 0;
+			msgFlag = false;
+			updateMessageView(0);
+		}
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
 		Handler voiceHandler = mApplication.getVoiceThreadHandler();
-		Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.LISTENING_MESSAGE, false);
-		voiceHandler.sendMessageAtFrontOfQueue(msg);
+		if (voiceHandler != null)
+		{
+			Message msg = voiceHandler.obtainMessage(VoiceRecognitionThread.LISTENING_MESSAGE, false);
+			voiceHandler.sendMessageAtFrontOfQueue(msg);
+		}
 		
 		getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 	}
@@ -262,6 +274,14 @@ public class MainActivity extends Activity {
 		focusView.setText("Focus: " + robotName);
 	}
 	
+	public void updateMessageView(int change) 
+	{
+		numMsgs += change;
+		numNewMsgs += change;
+		
+		messageView.setText("\u2709\t" + numMsgs + "\tNew: " + numNewMsgs);
+	}
+	
 	public void launchBluetoothListActivity()
 	{
 		startActivity(new Intent(this, BluetoothDevicesListActivity.class));
@@ -274,12 +294,20 @@ public class MainActivity extends Activity {
 	
 	public void launchMessageListActivity()
 	{
+		msgFlag = true;
 		startActivity(new Intent(this, MessageListActivity.class));
 	}
 	
 	public void shutdown()
 	{
-		//Should make sure all threads are closed before shutting down
+		//Make sure all threads are done before shutting down
+		while (mApplication.getConnectedThreadHandler() != null &&
+				mApplication.getVoiceThreadHandler() != null);
+		mConnectedThread.interrupt();
+		mVoiceThread.interrupt();
+		mConnectedThread = null;
+		mVoiceThread = null;
+		
 		finish();            	
 	}
 }

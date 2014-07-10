@@ -5,12 +5,12 @@
     android:layout_height="match_parent">
 
     <ImageView
+        android:id="@+id/imageView"
         android:layout_width="240px"
         android:layout_height="360px"
-        android:scaleType="centerInside"
-        android:id="@+id/imageView"
         android:background="@color/dark_grey"
-        android:src="@drawable/ic_bluetooth_on_big"/>
+        android:scaleType="centerInside"
+        android:src="@drawable/not_connected_cross" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -22,35 +22,35 @@
         android:layout_alignParentRight="true"
         android:layout_marginRight="40px"
         android:layout_marginTop="40px"
-        android:layout_marginLeft="20px"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/connectionStatus"
-        android:textSize="24sp"
-        android:layout_toRightOf="@+id/imageView"
-        android:layout_below="@+id/title"
-        android:layout_alignParentRight="true"
-        android:layout_marginTop="20px"
-        android:layout_marginRight="40px"
-        android:layout_marginLeft="20px"
-        android:textColor="@color/green"
-        android:text="@string/not_connected"/>
+        android:layout_marginLeft="20px" />
     
     <TextView
+        android:id="@+id/messageView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/focusView"
-        android:textSize="24sp"
-        android:layout_toRightOf="@+id/imageView"
-        android:layout_below="@+id/connectionStatus"
         android:layout_alignParentRight="true"
-        android:layout_marginTop="20px"
-        android:layout_marginRight="40px"
+        android:layout_below="@+id/title"
         android:layout_marginLeft="20px"
+        android:layout_marginRight="40px"
+        android:layout_marginTop="20px"
+        android:layout_toRightOf="@+id/imageView"
+        android:text="@string/message_string"
+        android:textColor="@color/yellow"
+        android:textSize="24sp" />
+    
+    <TextView
+        android:id="@+id/focusView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/messageView"
+        android:layout_marginLeft="20px"
+        android:layout_marginRight="40px"
+        android:layout_marginTop="20px"
+        android:layout_toRightOf="@+id/imageView"
+        android:text="@string/focus_all"
         android:textColor="@color/blue"
-        android:text="@string/focus_all"/>
+        android:textSize="24sp" />
     
      <TextView
         android:layout_width="wrap_content"

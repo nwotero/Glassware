@@ -23,6 +23,7 @@
     <string name="msg_counter">0 of 0</string>
     <string name="view_image">View Image</string>
     <string name="view_text">View Text</string>
+    <string name="message_string">\u2709\t0\tNew: 0</string>
     
     
 </resources>

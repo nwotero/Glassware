@@ -135,8 +135,17 @@ public class RobotManagerApplication extends Application
 		msgs.add(newMsg);
 		if (msgListActivity != null)
 		{
-			msgListActivity.onMessageAddition();
+			Runnable task = new Runnable() {
+				public void run() {
+					msgListActivity.onMessageAddition();
+				}
+			};
+			
+			mMainThreadHandler.post(task);
 		}
+		
+		Message msg = mMainThreadHandler.obtainMessage(MainActivity.NEW_MESSAGE_MESSAGE);
+		mMainThreadHandler.sendMessage(msg);
 		
 		AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		audio.playSoundEffect(Sounds.SUCCESS);

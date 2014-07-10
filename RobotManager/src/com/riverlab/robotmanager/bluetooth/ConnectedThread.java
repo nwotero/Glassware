@@ -74,7 +74,7 @@ public class ConnectedThread extends HandlerThread
 	@Override
 	public void start()
 	{
-		super.start();
+		super.start(); 
 
 		mHandler = new Handler(getLooper()){
 			public void handleMessage(Message msg) 
@@ -86,6 +86,7 @@ public class ConnectedThread extends HandlerThread
 					connect(deviceName);
 					break;
 				case DISCONNECT_MESSAGE:
+					Log.d("ConnectedThread", "Disconnect request received");
 					disconnect();
 					break;
 				case WRITE_MESSAGE:
@@ -204,10 +205,12 @@ public class ConnectedThread extends HandlerThread
 					Log.d("RobotManagerBluetooth", "Connection confirmed");
 					mApplication.setConnectionStatus(true);
 
-					Message connectionMessage = new Message();
-					connectionMessage.what = MainActivity.CONNECTION_MESSAGE;
-					connectionMessage.obj = "connected";
+					Message connectionMessage = mainHandler.obtainMessage(MainActivity.CONNECTION_MESSAGE, "connected");
 					mainHandler.sendMessageAtFrontOfQueue(connectionMessage);
+					
+					Message voiceConnectionMessage = voiceHandler.obtainMessage(VoiceRecognitionThread.CONNECTION_MESSAGE,
+							"connected");
+					voiceHandler.sendMessage(voiceConnectionMessage);
 
 					socketThread.start();
 
@@ -320,7 +323,7 @@ public class ConnectedThread extends HandlerThread
 			String tempString = "";
 			while (!hasFullHeader(tempString))
 			{	
-				byte[] bytes = read();
+				byte[] bytes = read(1);
 				if (bytes != null)
 				{
 					String readString = new String(bytes).trim();
@@ -565,7 +568,7 @@ public class ConnectedThread extends HandlerThread
 		mApplication.addMessage(msg);
 	}
 
-	public synchronized void write(byte[] bytes) {
+	public void write(byte[] bytes) {
 		String sentString = new String(bytes);
 		String confirmString = "Copy: " + sentString;
 
@@ -579,14 +582,7 @@ public class ConnectedThread extends HandlerThread
 			//Something went wrong, end connection
 
 			e.printStackTrace();
-			try {
-				mBtSocket.close();
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
-			mApplication.setConnectionStatus(false);
+			disconnect();
 		}
 		/*
 			// Listen for confirmation of receipt.
@@ -615,7 +611,7 @@ public class ConnectedThread extends HandlerThread
 
 		if (msg.getType().equals("simple"))
 		{
-			mainMsg.what = MainActivity.TEXT_MESSAGE;
+			mainMsg.what = MainActivity.MESSAGE_LIST_MESSAGE;
 		}
 
 		mainMsg.obj = msg;
@@ -624,16 +620,24 @@ public class ConnectedThread extends HandlerThread
 
 	public void disconnect() 
 	{
-		try 
-		{
+		//try 
+		//{
 			write("end connection\n".getBytes());
+			//mBtSocket.close();
 			socketThread.interrupt();
-			mBtSocket.close();
-			mApplication.setConnectionStatus(false);
-		} 
-		catch (IOException e) { 
+			socketThread = null;
+			mApplication.setConnectionStatus(false); 
+			
+			Message connectionMessage = mainHandler.obtainMessage(MainActivity.CONNECTION_MESSAGE, "disconnected");
+			mainHandler.sendMessage(connectionMessage);
+			
+			Message voiceConnectionMessage = voiceHandler.obtainMessage(VoiceRecognitionThread.CONNECTION_MESSAGE, "disconnected");
+			voiceHandler.sendMessage(voiceConnectionMessage);
+			//}
+		/*catch (IOException e) { 
+			Log.d("ConnectedThread", "Exception in disconnect");
 			e.printStackTrace();
-		}
+		}*/
 	}
 
 	public void shutdown()
@@ -643,8 +647,6 @@ public class ConnectedThread extends HandlerThread
 			disconnect();
 		}
 		isShutdown = true;
-
-		this.socketThread.interrupt();
-		this.interrupt();
+		mApplication.setConnectedThreadHandler(null);
 	}
 }

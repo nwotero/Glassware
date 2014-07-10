@@ -17,6 +17,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 {
 	private List<RobotMessage> mMessages;
 	private Context context;
+	ViewHolder holder;
 	
 	public MessageCardScrollAdapter(Context context, List<RobotMessage> messages) 
 	{
@@ -53,11 +54,11 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 	        TextView nextTxt;
 	        TextView prevTxt;
 	        TextView msgCounter;
+	        ImageView indicator;
 	    }
 
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
-		ViewHolder holder;
         if (convertView == null) {
             convertView = View.inflate(context, R.layout.message_card, null);
             holder = new ViewHolder();
@@ -69,6 +70,7 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
             holder.nextTxt = (TextView) convertView.findViewById(R.id.msgNextText);
             holder.prevTxt = (TextView) convertView.findViewById(R.id.msgPreviousText);
             holder.msgCounter = (TextView) convertView.findViewById(R.id.msgCounterText);
+            holder.indicator = (ImageView) convertView.findViewById(R.id.imageIndicator);
             
             convertView.setTag(holder);
         }
@@ -77,34 +79,37 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
         }
 
         RobotMessage msg = getItem(position);
-        holder.headline.setText(msg.getType() + " message from: " + msg.getSender());
+        holder.headline.setText(msg.getSender() + ": ");
         holder.text.setText(msg.getText());
   
         if (msg.getType().equals("Image") && msg.getImage() != null)
         {
         	holder.img.setImageBitmap(msg.getImage());
-        	holder.img.setVisibility(View.VISIBLE);
-        	holder.text.setVisibility(View.INVISIBLE);
+        	holder.indicator.setVisibility(View.VISIBLE);
         }
-        holder.timestamp.setText("Received: " + msg.getTimestamp());
+        holder.timestamp.setText(msg.getTimestamp());
         
         
         if (hasNext(position))
         {
+        	holder.nextTxt.setVisibility(View.VISIBLE);
         	holder.nextTxt.setText(R.string.next);
         }
         else
         {
-        	holder.nextTxt.setText(R.string.no_next);
+        	holder.nextTxt.setVisibility(View.INVISIBLE);
+        	//holder.nextTxt.setText(R.string.no_next);
         }
         
         if (hasPrevious(position))
         {
+        	holder.prevTxt.setVisibility(View.VISIBLE);
         	holder.prevTxt.setText(R.string.previous);
         }
         else
         {
-        	holder.prevTxt.setText(R.string.no_previous);
+        	holder.prevTxt.setVisibility(View.INVISIBLE);
+        	//holder.prevTxt.setText(R.string.no_previous);
         }
         
         holder.msgCounter.setText((position + 1) + " of " + mMessages.size());
@@ -123,6 +128,11 @@ public class MessageCardScrollAdapter extends CardScrollAdapter
 	private boolean hasPrevious(int position)
 	{
 		return position > 0;
+	}
+	
+	public ViewHolder getHolder()
+	{
+		return holder;
 	}
 
 }
